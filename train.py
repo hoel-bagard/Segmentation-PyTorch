@@ -56,7 +56,7 @@ def main():
 
     train_dataset = Dataset(os.path.join(DataConfig.DATA_PATH, "Train"),
                             limit=args.limit,
-                            load_images=args.load_data,
+                            load_data=args.load_data,
                             transform=Compose([
                                 transforms.Crop(top=600, bottom=500, left=800, right=200),
                                 transforms.RandomCrop(0.98),
@@ -75,7 +75,7 @@ def main():
 
     val_dataset = Dataset(os.path.join(DataConfig.DATA_PATH, "Validation"),
                           limit=args.limit,
-                          load_images=args.load_data,
+                          load_data=args.load_data,
                           transform=Compose([
                               transforms.Crop(top=600, bottom=500, left=800, right=200),
                               transforms.Resize(*ModelConfig.IMAGE_SIZES),

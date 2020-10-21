@@ -1,4 +1,5 @@
 import os
+import glob
 import xml.etree.ElementTree as ET
 from typing import Tuple, Dict
 
@@ -20,22 +21,32 @@ def load_voc_seg(data_path: str, label_map: Dict,
     Return:
         numpy array containing the paths/images and the associated label
     """
-    # TODO: project specific
-    if mode == "Train":
-        data_names = open(os.path.join(data_path, "ImageSets/Main/train.txt"), "r")
-    elif mode == "Validation":
-        data_names = open(os.path.join(data_path, "ImageSets/Main/val.txt"), "r")
-
     imgs = []
     labels = []
-    for name in data_names:
-        # TODO: project specific
-        image_path = os.path.join(data_path, "JPEGImages", name.strip()+".jpg")
-        label_path = os.path.join(data_path, "Annotations", name.strip()+".xml")
+    for label_path in glob.glob(os.path.join(data_path, "**", "*.xml"), recursive=True):
+        root: ET.Element = ET.parse(label_path).getroot()
+        image_path: str = root.find("path").text
+
+        print("LOAD VOC SEG line 30")
+        image_subpath = os.path.join(*image_path.split(os.path.sep)[-2:])
+
+        # It seems like glob does not work with Japanese characters
+        f = []
+        for dirpath, subdirs, files in os.walk(os.path.join(data_path, "images")):
+            f.extend(os.path.join(dirpath, x) for x in files)
+
+        print(image_subpath)
+        for filename in f:
+            # TODO: use the full subpath to avoid duplicates
+            if image_subpath.split(os.path.sep)[-1] in filename:
+                print("FOUND IT")
+                print(filename)
+
+        exit()
 
         # Load data directly if everything should be in RAM
         if load_data:
-            resized_img, seg_map = prepare_data(image_path, label_path)
+            resized_img, seg_map = prepare_data(image_path, label_path, label_map)
             imgs.append(resized_img)
             labels.append(seg_map)
         else:
@@ -48,7 +59,7 @@ def load_voc_seg(data_path: str, label_map: Dict,
     return imgs, labels
 
 
-def prepare_data(image_path: str, label_path: str) -> Tuple[np.ndarray, np.ndarray]:
+def prepare_data(image_path: str, label_path: str, label_map: Dict) -> Tuple[np.ndarray, np.ndarray]:
     """
     Takes in image and label paths, returns ready to use data.
     Args:
@@ -64,13 +75,13 @@ def prepare_data(image_path: str, label_path: str) -> Tuple[np.ndarray, np.ndarr
     resized_img = cv2.resize(img, (ModelConfig.IMG_SIZE, ModelConfig.IMG_SIZE), interpolation=cv2.INTER_AREA)
 
     # Read label file and make the segmentation map
-    img_labels = parse_voc2007_annotation(label_path)
+    img_labels = parse_voc2007_annotation(label_path, label_map)
     resized_img_labels = resize_labels(img_labels, height, width)
     seg_map = draw_segmentation_map(resized_img_labels, (ModelConfig.IMG_SIZE, ModelConfig.IMG_SIZE))
     return resized_img, seg_map
 
 
-def parse_voc2007_annotation(xml_path: str) -> np.ndarray:
+def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
     root: ET.Element = ET.parse(xml_path).getroot()
     objects: ET.Element = root.findall("object")
 
@@ -81,7 +92,7 @@ def parse_voc2007_annotation(xml_path: str) -> np.ndarray:
             continue
         labels.append([])
 
-        cls = CLASS_TO_INT_DICT[item.find("name").text]
+        cls = label_map[item.find("name").text]
         labels[-1].append(cls)
         bbox = np.asarray([(int(item.find("bndbox").find("xmin").text)),
                            (int(item.find("bndbox").find("ymin").text)),

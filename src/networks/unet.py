@@ -11,13 +11,13 @@ from src.networks.layers import (
 from config.model_config import ModelConfig
 
 
-class SmallDarknet(nn.Module):
+class UDarkNet(nn.Module):
     def __init__(self):
-        super(SmallDarknet, self).__init__()
+        super(UDarkNet, self).__init__()
         self.output_size = 2
         channels = ModelConfig.CHANNELS
 
-        self.cons = [DarknetBlock(channels[i-1], channels[i], ModelConfig.NB_BLOCKS[i-1]) 
+        self.cons = [DarknetBlock(channels[i-1], channels[i], ModelConfig.NB_BLOCKS[i-1])
                      for i in range(1, len(channels))]
         self.skip_connections = [SkipConnection(2*channels[i], channels[i]) for i in range(len(channels)-1, 1, -1)]
         self.cons_trans = [ConvTranspose(channels[i], channels[i-1]) for i in range(len(channels)-1, 1, -1)]
