@@ -25,19 +25,19 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.load_data = load_data
 
-        self.labels = load_voc_seg(data_path, DataConfig.LABEL_MAP, limit=limit, load_data=self.load_data)
+        self.data = load_voc_seg(data_path, DataConfig.LABEL_MAP, limit=limit, load_data=self.load_data)
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.data[0])
 
     def __getitem__(self, i):
         if torch.is_tensor(i):
             i = i.tolist()
 
         if self.load_data:
-            img, label = self.labels[i].astype(np.uint8)
+            img, label = self.data[i].astype(np.uint8)
         else:
-            img, label = prepare_data(self.labels[i, 0], self.labels[i, 1])
+            img, label = prepare_data(self.data[i, 0], self.data[i, 1], DataConfig.LABEL_MAP)
 
         sample = {"img": img, "label": label}
 

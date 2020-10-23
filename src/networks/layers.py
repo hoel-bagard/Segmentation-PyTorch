@@ -51,8 +51,8 @@ class SkipConnection(nn.Module):
                               stride=1, padding=0, bias=False)
         self.batch_norm = nn.BatchNorm2d(out_filters)
 
-    def call(self, input_op, skip_op):
-        x = torch.cat((input_op, skip_op), dim=-1)
+    def forward(self, input_op, skip_op):
+        x = torch.cat((input_op, skip_op), dim=-3)  # Channels first in PyTorch........
 
         x = self.conv(x)
         x = self.batch_norm(x)
@@ -61,7 +61,7 @@ class SkipConnection(nn.Module):
 
 
 class ConvTranspose(torch.nn.Module):
-    def __init__(self, in_filters, out_filters, size, stride=1, padding=0):
+    def __init__(self, in_filters, out_filters, size, stride=2, padding=0):
         super(ConvTranspose, self).__init__()
         self.conv_transpose = nn.ConvTranspose2d(in_filters, out_filters, kernel_size=size,
                                                  stride=stride, padding=padding, bias=False)

@@ -4,6 +4,7 @@ import torch.nn as nn
 
 class CE_Loss(nn.Module):
     def __init__(self, negative_loss_factor: int = 50):
+        super(CE_Loss, self).__init__()
         self.negative_loss_factor = negative_loss_factor
 
     def forward(self, input_data: torch.Tensor, input_labels: torch.Tensor) -> torch.Tensor:
