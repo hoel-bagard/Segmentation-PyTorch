@@ -28,7 +28,7 @@ class Dataset(torch.utils.data.Dataset):
         self.data = load_voc_seg(data_path, DataConfig.LABEL_MAP, limit=limit, load_data=self.load_data)
 
     def __len__(self):
-        return len(self.data[0])
+        return len(self.data)
 
     def __getitem__(self, i):
         if torch.is_tensor(i):

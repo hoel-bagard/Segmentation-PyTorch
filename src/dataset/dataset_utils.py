@@ -89,7 +89,12 @@ def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
             continue
         labels.append([])
 
-        cls = next(key for key, value in label_map.items() if value == item.find("name").text)
+        try:
+            cls = next(key for key, value in label_map.items() if value == item.find("name").text)
+        except StopIteration:
+            print(f"Class {item.find('name').text} is not in the label map:")
+            print(label_map)
+            exit()
 
         labels[-1].append(cls)
         bbox = np.asarray([(int(item.find("bndbox").find("xmin").text)),
@@ -102,12 +107,11 @@ def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
 
 
 def draw_segmentation_map(labels: np.ndarray, shape: Tuple[int, int]):
-    # TODO: this assumes RGB
-    seg_map = np.full((*shape[::-1], 3), [255, 255, 255])
+    seg_map = np.full((*shape[::-1], 1), 1)
 
     for label in labels:
         xmin, ymin, xmax, ymax = label[1]
-        seg_map[ymin:ymax, xmin:xmax] = [0, 0, 0]
+        seg_map[ymin:ymax, xmin:xmax] = 0
 
     return seg_map.astype(np.uint8)
 
@@ -127,6 +131,6 @@ def resize_labels(img_labels: np.ndarray, org_height: int, org_width: int):
         new_y_max = int(bbox[3] * ModelConfig.IMAGE_SIZES[1] / org_height)
 
         new_bbox = np.asarray([new_x_min, new_y_min, new_x_max, new_y_max], dtype=np.int32)
-        resized_labels.append(np.asarray([cls, new_bbox]))
+        resized_labels.append(np.asarray([cls, new_bbox], dtype=object))
 
     return np.asarray(resized_labels, dtype=object)

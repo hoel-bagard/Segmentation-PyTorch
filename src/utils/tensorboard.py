@@ -23,7 +23,8 @@ class TensorBoard():
 
         self.train_tb_writer = SummaryWriter(os.path.join(DataConfig.TB_DIR, "Train"))
         self.val_tb_writer = SummaryWriter(os.path.join(DataConfig.TB_DIR, "Validation"))
-        self.train_tb_writer.add_graph(model, (torch.empty(1, 3, *ModelConfig.IMAGE_SIZES, device=self.device), ))
+        # TODO: does not work for some reason.....
+        # self.train_tb_writer.add_graph(model, (torch.empty(1, 3, *ModelConfig.IMAGE_SIZES, device=self.device), ))
         self.train_tb_writer.flush()
 
     def write_images(self, epoch: int, dataloader: torch.utils.data.DataLoader, mode: str = "Train"):
@@ -40,7 +41,6 @@ class TensorBoard():
         in_imgs, labels = batch["img"][:self.max_outputs].float(), batch["label"][:self.max_outputs]
         out_imgs = self.model(in_imgs.to(self.device))
         for image_index, out_img in enumerate(out_imgs):
-            out_img = np.transpose(out_img, (2, 0, 1))  # HWC -> CHW
             tb_writer.add_image(f"{mode}/prediction_{image_index}", out_img, global_step=epoch)
 
     def write_loss(self, epoch: int, loss: float, mode: str = "Train"):

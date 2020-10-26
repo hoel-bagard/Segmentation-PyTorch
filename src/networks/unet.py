@@ -45,7 +45,7 @@ class UDarkNet(nn.Module):
 
         for i in range(len(ModelConfig.CHANNELS)-2, -1, -1):
             x = self.skip_connections[i](conv_outputs[i], x)
-            x = self.conv_trans[i](x)
+            x = self.conv_trans[i](x, output_size=((2*x.shape[-2], 2*x.shape[-1])))
 
         x = self.last_conv(x)
         x = torch.sigmoid(x)

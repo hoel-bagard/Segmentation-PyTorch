@@ -1,6 +1,7 @@
 import random
 
 import cv2
+import numpy as np
 import torch
 
 
@@ -103,6 +104,7 @@ class ToTensor(object):
         # torch image: C X H X W
 
         img = img.transpose((2, 0, 1))
+        label = np.expand_dims(label, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
         label = label.transpose((2, 0, 1))
         return {'img': torch.from_numpy(img),
                 'label': torch.from_numpy(label)}
