@@ -1,5 +1,6 @@
 import os
 
+import cv2
 import numpy as np
 import torch
 import torch.nn as nn
@@ -39,8 +40,13 @@ class TensorBoard():
         tb_writer = self.train_tb_writer if mode == "Train" else self.val_tb_writer
         batch = next(iter(dataloader))
         in_imgs, labels = batch["img"][:self.max_outputs].float(), batch["label"][:self.max_outputs]
-        out_imgs = self.model(in_imgs.to(self.device))
-        for image_index, out_img in enumerate(out_imgs):
+        out_imgs = self.model(in_imgs.to(self.device)).cpu()
+        for image_index, (in_img, out_img, label_img) in enumerate(zip(in_imgs, out_imgs, labels)):
+            # Could use cv2.addWeighted, but adding is simpler and good enough
+            # label_img = torch.clamp(in_img + label_img, 0., 1.)
+            # out_img = torch.clamp(in_img + out_img, 0., 1.)
+
+            tb_writer.add_image(f"{mode}/label_{image_index}", label_img.float(), global_step=epoch)
             tb_writer.add_image(f"{mode}/prediction_{image_index}", out_img, global_step=epoch)
 
     def write_loss(self, epoch: int, loss: float, mode: str = "Train"):
