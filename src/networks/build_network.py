@@ -1,13 +1,21 @@
+from typing import Optional
+
 import torch
 
 from .unet import UDarkNet
 
 
-def build_model(name: str, model_path: str = None, eval: bool = False):
+class ModelHelper:
+    UDarkNet = UDarkNet
+
+
+def build_model(model_type: type, output_classes: bool, model_path: Optional[str] = None,
+                eval_mode: bool = False, **kwargs):
     """
     Creates model corresponding to the given name.
     Args:
         name: Name of the model to create, must be one of the implemented models
+        output_classes: Number of classes in the dataset
         model_path: If given, then the weights will be load that checkpoint
         eval: Whether the model will be used for evaluation or not
     Returns:
@@ -15,15 +23,13 @@ def build_model(name: str, model_path: str = None, eval: bool = False):
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    assert name in ("UDarkNet")
-    if name == "UDarkNet":
-        model = UDarkNet()
+    kwargs["output_classes"] = output_classes
+    model = model_type(**kwargs)
 
     if model_path is not None:
         model.load_state_dict(torch.load(model_path))
     if eval:
         model.eval()
 
-    model = model.float()
     model.to(device)
     return model

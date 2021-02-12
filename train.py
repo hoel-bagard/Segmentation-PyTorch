@@ -1,9 +1,8 @@
 from torch.utils.tensorboard import SummaryWriter  # noqa: F401  # Needs to be there to avoid segfaults
 import argparse
-import os
 import glob
-import shutil
 import time
+from pathlib import Path
 
 import torch
 from torchvision.transforms import Compose
@@ -15,6 +14,7 @@ from src.dataset.dataset import Dataset
 from src.networks.build_network import build_model
 from src.train import train
 import src.dataset.transforms as transforms
+from src.torch_utils.utils.misc import clean_print
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=ModelConfig.BATCH_SIZE,
                                                    shuffle=True, num_workers=8)
 
-    print("Train data loaded" + ' ' * (os.get_terminal_size()[0] - 17))
+    clean_print("Train data loaded")
 
     val_dataset = Dataset(os.path.join(DataConfig.DATA_PATH, "Validation"),
                           limit=args.limit,
@@ -84,7 +84,8 @@ def main():
                           ]))
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=ModelConfig.BATCH_SIZE,
                                                  shuffle=True, num_workers=8)
-    print("Validation data loaded" + ' ' * (os.get_terminal_size()[0] - 22))
+
+    clean_print("Validation data loaded")
 
     print(f"\nLoaded {len(train_dataloader.dataset)} train data and",
           f"{len(val_dataloader.dataset)} validation data", flush=True)
