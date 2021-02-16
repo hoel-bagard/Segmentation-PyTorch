@@ -1,2 +1,9 @@
-tensorflow==2.2.0rc1
+torch
+torchvision
+torchsummary
+tensorboard
 opencv-python
+numpy
+matplotlib
+moviepy
+einops
