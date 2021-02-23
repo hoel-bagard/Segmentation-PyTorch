@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import multiprocessing as mp
 from multiprocessing import shared_memory
 from typing import (
@@ -6,6 +7,7 @@ from typing import (
     Final,
     Any
 )
+from itertools import product
 from time import time
 from math import ceil
 
@@ -47,6 +49,8 @@ class BatchGenerator:
         self.nb_datapoints: Final[int] = len(self.data)
 
         index_list: np.ndarray = np.arange(self.nb_datapoints)
+        if self.shuffle:
+            np.random.shuffle(index_list)
         data_batch: np.ndarray = np.asarray([data_preprocessing_fn(entry) if data_preprocessing_fn else entry
                                              for entry in data[:batch_size]])
         labels_batch: np.ndarray = np.asarray([labels_preprocessing_fn(entry) if data_preprocessing_fn else entry
@@ -134,14 +138,16 @@ class BatchGenerator:
                 break
 
     def next_batch(self):
+        """
+        Returns a batch of data, goes to the next epoch when the previous one is finished.
+        Does not raise a StopIteration, looping using this function means the loop will never stop.
+        """
         self.global_step += 1
         self.step += 1   # Step starts at 1
 
         # Check if the current epoch is finished. If it is then start a new one.
-        if (self.step-1) * self.batch_size > self.nb_datapoints:
-            self.epoch += 1
-            self.step = 1
-            np.random.shuffle(self.cache_indices)
+        if self.step > self.step_per_epoch:
+            self._next_epoch()
 
         # Prepare arguments for workers and send them
         current_batch_size = self.batch_size if self.step != self.step_per_epoch else self.last_batch_size
@@ -158,9 +164,26 @@ class BatchGenerator:
             pipe.recv()
 
         data_batch = self.cache_data[self.current_cache][:current_batch_size]
-        labels_batch = self.cache_data[self.current_cache][:current_batch_size]
+        labels_batch = self.cache_labels[self.current_cache][:current_batch_size]
 
         return data_batch, labels_batch
+
+    def _next_epoch(self):
+        """Increments variable to prepare for the next epoch"""
+        self.epoch += 1
+        self.step = 0
+        if self.shuffle:
+            np.random.shuffle(self.cache_indices)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.step < self.step_per_epoch:
+            return self.next_batch()
+        else:
+            self._next_epoch()
+            raise StopIteration
 
     def __del__(self):
         self.release()
@@ -197,22 +220,87 @@ class BatchGenerator:
 
 
 if __name__ == '__main__':
-    # TODO: Make the function into an actual test with asserts
+    parser = ArgumentParser("BatchGenerator Test script")
+    parser.add_argument("--verbose", "--v", action="store_true", help="Verbose mode")
+    args = parser.parse_args()
+
+    verbose = args.verbose
+
     def test():
-        data = np.array(
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], dtype=np.uint8)
-        label = np.array(
-            [.1, .2, .3, .4, .5, .6, .7, .8, .9, .10, .11, .12, .13, .14, .15, .16, .17, .18], dtype=np.uint8)
+        # Prepare mock dataset
+        nb_datapoints = 18
+        data = np.arange(nb_datapoints)
+        labels = np.arange(nb_datapoints) / 10
 
-        data_preprocessing_fn = None
+        # Prepare variables to test against
+        labels_preprocessing_fns = [None]
+        data_preprocessing_fns = [None]
+        batch_sizes = [5]
+        workers = [2]
 
-        for nb_workers in [2]:
-            print(f'{nb_workers=}')
-            with BatchGenerator(data, label, 5, data_preprocessing_fn=data_preprocessing_fn,
-                                nb_workers=nb_workers) as batch_generator:
-                for _ in range(19):
-                    data_batch, labels_batch = batch_generator.next_batch()
-                    # print(f"{batch_generator.epoch=}, {batch_generator.step=}")
-                    print(f"{data_batch=}, {labels_batch=}")
+        # TODO: use itertools to space two for loops
+        for nb_workers, batch_size, data_preprocessing_fn, labels_preprocessing_fn in product(workers, batch_sizes,
+                                                                                              data_preprocessing_fns,
+                                                                                              labels_preprocessing_fns):
+            if verbose:
+                print(f'{nb_workers=}')
+
+            # Preprocess data && labels here to do it only once
+            processed_data = data_preprocessing_fn(data) if data_preprocessing_fn else data
+            processed_labels = labels_preprocessing_fn(labels) if labels_preprocessing_fn else labels
+
+            # Prepare some variables used for testing
+            step_per_epoch = (nb_datapoints + (batch_size-1)) // batch_size
+            last_batch_size = nb_datapoints % batch_size if nb_datapoints % batch_size else batch_size
+            global_step = 0
+
+            with BatchGenerator(data, labels, batch_size, data_preprocessing_fn=data_preprocessing_fn,
+                                nb_workers=nb_workers, shuffle=True) as batch_generator:
+                for epoch in range(5):
+                    # Variables used to aggregate dataset
+                    agg_data = []
+                    agg_labels = []
+
+                    for data_batch, labels_batch in batch_generator:
+                        global_step += 1
+                        agg_data += list(data_batch)
+                        agg_labels += list(labels_batch)
+
+                        if verbose:
+                            print(f"{batch_generator.epoch=}, {batch_generator.step=}")
+                            print(f"{data_batch=}, {labels_batch=}")
+
+                        # Check that variables are what they should be
+                        assert global_step == batch_generator.global_step, (
+                            f"Global step is {batch_generator.global_step} but should be {global_step}")
+                        expected_epoch = (global_step-1) // step_per_epoch
+                        assert batch_generator.epoch == expected_epoch, (
+                            f"Epoch is {batch_generator.epoch} but should be {expected_epoch}")
+                        expected_step = (global_step-1) % step_per_epoch + 1
+                        assert expected_step == batch_generator.step, (
+                            f"Step is {batch_generator.step} but should be {expected_step}")
+
+                        # Check that length  of each batch is as expected
+                        assert len(data_batch) == len(labels_batch), "Data and labels' shapes are different"
+                        if expected_step != step_per_epoch:
+                            assert len(data_batch) == batch_size, (
+                                f"Batch size is {len(data_batch)} but should be {batch_size}")
+                        else:
+                            assert len(data_batch) == last_batch_size, (
+                                f"Batch size is {len(data_batch)} but should be {last_batch_size}")
+
+                        # Check that labels correspond to datapoints
+                        for data_point, label in zip(data_batch, labels_batch):
+                            original_index = np.where(processed_data == data_point)[0][0]
+                            assert processed_labels[original_index] == label, (
+                                f"Expected label for {data_point} to be {processed_labels[original_index]}",
+                                f"but got {label}.")
+
+                    # Check that all elements appeared (once) during the epoch
+                    assert len(agg_data) == nb_datapoints, f"{len(agg_data)} elements appeared instead of {nb_datapoints}"  # noqa:E501
+                    assert set(agg_data) == set(processed_data), (
+                        f"Data returned are not as expected.\nExpected:\n{processed_data}\nGot:\n{agg_data}")
+                    assert set(agg_labels) == set(processed_labels), (
+                        f"labels returned are not as expected.\nExpected:\n{processed_labels}\nGot:\n{agg_labels}")
 
     test()
