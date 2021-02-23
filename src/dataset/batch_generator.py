@@ -44,7 +44,6 @@ class BatchGenerator:
         # TODOLIST
         # TODO: Add possibility to save dataset as hdf5
         # TODO: add possibility to drop last batch
-        # TODO: Make an Iterator to allow enumerating the dataset
 
         self.nb_datapoints: Final[int] = len(self.data)
 
@@ -261,7 +260,7 @@ if __name__ == '__main__':
                     agg_data = []
                     agg_labels = []
 
-                    for data_batch, labels_batch in batch_generator:
+                    for step, (data_batch, labels_batch) in enumerate(batch_generator, start=1):
                         global_step += 1
                         agg_data += list(data_batch)
                         agg_labels += list(labels_batch)
@@ -276,13 +275,12 @@ if __name__ == '__main__':
                         expected_epoch = (global_step-1) // step_per_epoch
                         assert batch_generator.epoch == expected_epoch, (
                             f"Epoch is {batch_generator.epoch} but should be {expected_epoch}")
-                        expected_step = (global_step-1) % step_per_epoch + 1
-                        assert expected_step == batch_generator.step, (
-                            f"Step is {batch_generator.step} but should be {expected_step}")
+                        assert step == batch_generator.step, (
+                            f"Step is {batch_generator.step} but should be {step}")
 
                         # Check that length  of each batch is as expected
                         assert len(data_batch) == len(labels_batch), "Data and labels' shapes are different"
-                        if expected_step != step_per_epoch:
+                        if step != step_per_epoch:
                             assert len(data_batch) == batch_size, (
                                 f"Batch size is {len(data_batch)} but should be {batch_size}")
                         else:
@@ -297,7 +295,8 @@ if __name__ == '__main__':
                                 f"but got {label}.")
 
                     # Check that all elements appeared (once) during the epoch
-                    assert len(agg_data) == nb_datapoints, f"{len(agg_data)} elements appeared instead of {nb_datapoints}"  # noqa:E501
+                    assert len(agg_data) == nb_datapoints, (
+                        f"{len(agg_data)} elements appeared instead of {nb_datapoints}")
                     assert set(agg_data) == set(processed_data), (
                         f"Data returned are not as expected.\nExpected:\n{processed_data}\nGot:\n{agg_data}")
                     assert set(agg_labels) == set(processed_labels), (
