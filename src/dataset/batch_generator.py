@@ -232,15 +232,16 @@ if __name__ == '__main__':
         labels = np.arange(nb_datapoints) / 10
 
         # Prepare variables to test against
-        labels_preprocessing_fns = [None]
-        data_preprocessing_fns = [None]
-        batch_sizes = [5]
         workers = [2]
+        batch_sizes = [5]
+        data_preprocessing_fns = [None]
+        labels_preprocessing_fns = [None]
 
-        # TODO: use itertools to space two for loops
-        for nb_workers, batch_size, data_preprocessing_fn, labels_preprocessing_fn in product(workers, batch_sizes,
-                                                                                              data_preprocessing_fns,
-                                                                                              labels_preprocessing_fns):
+        # Put all the variables into a list, then use itertools to get all the possible combinations
+        args_lists = [workers, batch_sizes, data_preprocessing_fns, labels_preprocessing_fns]
+        for args in product(*args_lists):
+            nb_workers, batch_size, data_preprocessing_fn, labels_preprocessing_fn = args
+
             if verbose:
                 print(f'{nb_workers=}')
 
