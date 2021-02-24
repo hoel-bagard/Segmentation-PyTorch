@@ -20,7 +20,7 @@ class BatchGenerator:
                  nb_workers: int = 1,
                  data_preprocessing_fn: Optional[Callable[[np.ndarray], Any]] = None,
                  labels_preprocessing_fn: Optional[Callable[[np.ndarray], Any]] = None,
-                 shuffle: bool = False):
+                 shuffle: bool = False, verbose: bool = False):
         """
         Args:
             data: Numpy array with the data. It can be be only path to the datapoints to load (or other forms of data)
@@ -30,7 +30,9 @@ class BatchGenerator:
             data_preprocessing_fn: If not None, data will be passed through this function.
             labels_preprocessing_fn: If not None, labels will be passed through this function.
             shuffle: If True, then dataset is shuffled for each epoch
+            verbose: If true then the BatchGenerator will print debug information
         """
+        self.verbose: Final[bool] = verbose
 
         self.data: Final[np.ndarray] = data
         self.labels: Final[np.ndarray] = labels
@@ -59,6 +61,7 @@ class BatchGenerator:
         self.last_batch_size = self.nb_datapoints % self.batch_size
         if self.last_batch_size == 0:
             self.last_batch_size = self.batch_size
+        self.current_batch_size = self.batch_size
 
         self.epoch = 0
         self.global_step = 0
@@ -68,29 +71,30 @@ class BatchGenerator:
         self.memories_released = mp.Event()
         # For data and labels, 2 memories / caches are required for prefetch to work.
         # (One for the main process to read from, one for the workers to write in)
-        self.current_cache = 0
+        self._current_cache = 0
         # Indices
-        self.cache_memory_indices = shared_memory.SharedMemory(create=True, size=index_list.nbytes)
-        self.cache_indices = np.ndarray(self.nb_datapoints, dtype=int, buffer=self.cache_memory_indices.buf)
-        self.cache_indices[:] = index_list
+        self._cache_memory_indices = shared_memory.SharedMemory(create=True, size=index_list.nbytes)
+        self._cache_indices = np.ndarray(self.nb_datapoints, dtype=int, buffer=self._cache_memory_indices.buf)
+        self._cache_indices[:] = index_list
         # Data
-        self.cache_memory_data = [
+        self._cache_memory_data = [
             shared_memory.SharedMemory(create=True, size=data_batch.nbytes),
             shared_memory.SharedMemory(create=True, size=data_batch.nbytes)]
-        self.cache_data = [
-            np.ndarray(data_batch.shape, dtype=data_batch.dtype, buffer=self.cache_memory_data[0].buf),
-            np.ndarray(data_batch.shape, dtype=data_batch.dtype, buffer=self.cache_memory_data[1].buf)]
+        self._cache_data = [
+            np.ndarray(data_batch.shape, dtype=data_batch.dtype, buffer=self._cache_memory_data[0].buf),
+            np.ndarray(data_batch.shape, dtype=data_batch.dtype, buffer=self._cache_memory_data[1].buf)]
         # Labels
-        self.cache_memory_labels = [
+        self._cache_memory_labels = [
             shared_memory.SharedMemory(create=True, size=labels_batch.nbytes),
             shared_memory.SharedMemory(create=True, size=labels_batch.nbytes)]
-        self.cache_labels = [
-            np.ndarray(labels_batch.shape, dtype=labels_batch.dtype, buffer=self.cache_memory_labels[0].buf),
-            np.ndarray(labels_batch.shape, dtype=labels_batch.dtype, buffer=self.cache_memory_labels[1].buf)]
+        self._cache_labels = [
+            np.ndarray(labels_batch.shape, dtype=labels_batch.dtype, buffer=self._cache_memory_labels[0].buf),
+            np.ndarray(labels_batch.shape, dtype=labels_batch.dtype, buffer=self._cache_memory_labels[1].buf)]
 
         # Create workers
         self.process_id = "NA"
         self._init_workers()
+        self._prefetch_batch()
         self.process_id = "main"
 
     def _init_workers(self):
@@ -111,10 +115,14 @@ class BatchGenerator:
                 # Check if there is a message to be received. (prevents process from getting stuck)
                 if pipe.poll(0.05):
                     current_cache, cache_start_index, indices_start_index, nb_elts = pipe.recv()
+                    # If the worker is in excess, then it has nothing to do (small last batch for exemple)
+                    if nb_elts == 0:
+                        pipe.send(True)
+                        continue
                 else:
                     continue
 
-                indices_to_process = self.cache_indices[indices_start_index:indices_start_index+nb_elts]
+                indices_to_process = self._cache_indices[indices_start_index:indices_start_index+nb_elts]
 
                 # Get the data (and process it)
                 if self.data_preprocessing_fn:  # TODO: one liner with # noqa:E501 ?
@@ -122,19 +130,43 @@ class BatchGenerator:
                 else:
                     processed_data = self.data[indices_to_process]
                 # Put the data into the shared memory
-                self.cache_data[current_cache][cache_start_index:cache_start_index+nb_elts] = processed_data
+                self._cache_data[current_cache][cache_start_index:cache_start_index+nb_elts] = processed_data
 
                 # Do the same for labels
                 if self.labels_preprocessing_fn:
                     processed_labels = self.labels_preprocessing_fn(self.labels[indices_to_process])
                 else:
                     processed_labels = self.labels[indices_to_process]
-                self.cache_labels[current_cache][cache_start_index:cache_start_index+nb_elts] = processed_labels
+                self._cache_labels[current_cache][cache_start_index:cache_start_index+nb_elts] = processed_labels
 
                 # Send signal to the main process to say that everything is ready
                 pipe.send(True)
             except (KeyboardInterrupt, ValueError):
                 break
+
+    def _prefetch_batch(self):
+        # Prefetch step is one step ahead of the actual one
+        if self.step < self.step_per_epoch:
+            step = (self.step + 1)
+        else:
+            step = 1
+            if self.shuffle:
+                np.random.shuffle(self._cache_indices)
+
+        # Prepare arguments for workers and send them
+        prefetch_batch_size = self.batch_size if step != self.step_per_epoch else self.last_batch_size
+        prefetch_cache = 1 - self._current_cache
+        nb_workers = min(self.nb_workers, prefetch_batch_size)  # Do not use all the workers if the batch size is small
+        nb_elts_per_worker = prefetch_batch_size // nb_workers
+        for worker_idx in range(self.nb_workers):
+            if worker_idx < nb_workers:
+                cache_start_index = worker_idx * nb_elts_per_worker
+                indices_start_index = (step-1) * self.batch_size + cache_start_index
+                nb_elts = nb_elts_per_worker if worker_idx != (nb_workers-1) else ceil(prefetch_batch_size / nb_workers)
+                self.worker_pipes[worker_idx][0].send((prefetch_cache, cache_start_index, indices_start_index, nb_elts))
+            else:
+                # Send empty instructions to excess workers
+                self.worker_pipes[worker_idx][0].send((0, 0, 0, 0))
 
     def next_batch(self):
         """
@@ -148,31 +180,25 @@ class BatchGenerator:
         if self.step > self.step_per_epoch:
             self._next_epoch()
 
-        # Prepare arguments for workers and send them
-        current_batch_size = self.batch_size if self.step != self.step_per_epoch else self.last_batch_size
-        self.current_cache = (self.current_cache+1) % 2
-        nb_elts_per_worker = current_batch_size // self.nb_workers
-        for worker_index in range(self.nb_workers):
-            cache_start_index = worker_index * nb_elts_per_worker
-            indices_start_index = (self.step-1) * self.batch_size + cache_start_index
-            nb_elts = nb_elts_per_worker if worker_index != (self.nb_workers-1) else ceil(current_batch_size / self.nb_workers)  # noqa:E501
-            self.worker_pipes[worker_index][0].send((self.current_cache, cache_start_index, indices_start_index, nb_elts))  # noqa:E501
-
         # Wait for everyworker to have finished preparing its mini-batch
         for pipe, _ in self.worker_pipes:
             pipe.recv()
 
-        data_batch = self.cache_data[self.current_cache][:current_batch_size]
-        labels_batch = self.cache_labels[self.current_cache][:current_batch_size]
+        self.current_batch_size = self.batch_size if self.step != self.step_per_epoch else self.last_batch_size
+        self._current_cache = (self._current_cache+1) % 2
+        data_batch = self._cache_data[self._current_cache][:self.current_batch_size]
+        labels_batch = self._cache_labels[self._current_cache][:self.current_batch_size]
+
+        # Start prefetching the next batch
+        self._prefetch_batch()
 
         return data_batch, labels_batch
 
     def _next_epoch(self):
-        """Increments variable to prepare for the next epoch"""
+        """Prepares variables for the next epoch"""
         self.epoch += 1
         self.step = 0
-        if self.shuffle:
-            np.random.shuffle(self.cache_indices)
+        # TODO: Shuffle was here and should be here
 
     def __iter__(self):
         return self
@@ -196,7 +222,7 @@ class BatchGenerator:
     def release(self):
         """Terminates all workers and releases all the shared ressources"""
         # Closes acces to the shared memories
-        for shared_mem in self.cache_memory_data + self.cache_memory_labels + [self.cache_memory_indices]:
+        for shared_mem in self._cache_memory_data + self._cache_memory_labels + [self._cache_memory_indices]:
             shared_mem.close()
 
         if self.process_id == "main":
@@ -212,8 +238,9 @@ class BatchGenerator:
 
             if not self.memories_released.is_set():
                 # Requests for all the shared memories to be destroyed
-                print("Releasing shared memories")
-                for shared_mem in self.cache_memory_data + self.cache_memory_labels + [self.cache_memory_indices]:
+                if self.verbose:
+                    print("Releasing shared memories")
+                for shared_mem in self._cache_memory_data + self._cache_memory_labels + [self._cache_memory_indices]:
                     shared_mem.unlink()
                 self.memories_released.set()
 
@@ -232,7 +259,7 @@ if __name__ == '__main__':
         labels = np.arange(nb_datapoints) / 10
 
         # Prepare variables to test against
-        workers = [2]
+        workers = [1, 2, 5]
         batch_sizes = [5]
         data_preprocessing_fns = [None]
         labels_preprocessing_fns = [None]
@@ -245,7 +272,7 @@ if __name__ == '__main__':
             if verbose:
                 print(f'{nb_workers=}')
 
-            # Preprocess data && labels here to do it only once
+            # Preprocess data and labels here to do it only once
             processed_data = data_preprocessing_fn(data) if data_preprocessing_fn else data
             processed_labels = labels_preprocessing_fn(labels) if labels_preprocessing_fn else labels
 
