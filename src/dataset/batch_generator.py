@@ -48,7 +48,9 @@ class BatchGenerator:
 
         # TODOLIST
         # TODO: Add possibility to save dataset as hdf5
-        # TODO: add possibility to drop last batch
+        # TODO: Add possibility to drop last batch
+        # TODO: Have the prefetch in a workers
+        # TODO: Catch ctrl-c to allow pressing it twice (once to send stop signal and 2 to kill everything)
 
         self.nb_datapoints: Final[int] = len(self.data)
 
@@ -71,7 +73,7 @@ class BatchGenerator:
         self.step = 0
 
         # Create shared memories for indices, data and labels.
-        self.memories_released = mp.Event()
+        self.memories_released = mp.Event()   # TODO: change that to a boolean
         # For data and labels, 2 memories / caches are required for prefetch to work.
         # (One for the main process to read from, one for the workers to write in)
         self._current_cache = 0
