@@ -8,7 +8,10 @@ from typing import (
     Any
 )
 from itertools import product
-from time import time
+from time import (
+    time,
+    # sleep
+)
 from math import ceil
 
 import numpy as np
@@ -92,10 +95,10 @@ class BatchGenerator:
             np.ndarray(labels_batch.shape, dtype=labels_batch.dtype, buffer=self._cache_memory_labels[1].buf)]
 
         # Create workers
-        self.process_id = "NA"
+        self._process_id = "NA"
         self._init_workers()
         self._prefetch_batch()
-        self.process_id = "main"
+        self._process_id = "main"
 
     def _init_workers(self):
         """Create workers and pipes / events used to communicate with them"""
@@ -107,7 +110,8 @@ class BatchGenerator:
             self.worker_processes[-1].start()
 
     def _worker_fn(self, worker_index: int):
-        self.process_id = f"worker_{worker_index}"
+        """ Function executed by workers, loads and process a mini-batch of data and puts it in the shared memory"""
+        self._process_id = f"worker_{worker_index}"
         pipe = self.worker_pipes[worker_index][1]
 
         while not self.stop_event.is_set():
@@ -125,7 +129,7 @@ class BatchGenerator:
                 indices_to_process = self._cache_indices[indices_start_index:indices_start_index+nb_elts]
 
                 # Get the data (and process it)
-                if self.data_preprocessing_fn:  # TODO: one liner with # noqa:E501 ?
+                if self.data_preprocessing_fn:
                     processed_data = self.data_preprocessing_fn(self.data[indices_to_process])
                 else:
                     processed_data = self.data[indices_to_process]
@@ -145,11 +149,13 @@ class BatchGenerator:
                 break
 
     def _prefetch_batch(self):
+        """ Start sending intructions to workers to load the next batch while the previous one is being used """
         # Prefetch step is one step ahead of the actual one
         if self.step < self.step_per_epoch:
             step = (self.step + 1)
         else:
             step = 1
+            # Here is the true beginning of the new epoch as far as data preparation is concerned, hence the shuffle
             if self.shuffle:
                 np.random.shuffle(self._cache_indices)
 
@@ -173,14 +179,14 @@ class BatchGenerator:
         Returns a batch of data, goes to the next epoch when the previous one is finished.
         Does not raise a StopIteration, looping using this function means the loop will never stop.
         """
-        self.global_step += 1
-        self.step += 1   # Step starts at 1
-
         # Check if the current epoch is finished. If it is then start a new one.
-        if self.step > self.step_per_epoch:
+        if self.step >= self.step_per_epoch:
             self._next_epoch()
 
-        # Wait for everyworker to have finished preparing its mini-batch
+        self.global_step += 1
+        self.step += 1   # Steps start at 1
+
+        # Wait for every worker to have finished preparing its mini-batch
         for pipe, _ in self.worker_pipes:
             pipe.recv()
 
@@ -198,7 +204,6 @@ class BatchGenerator:
         """Prepares variables for the next epoch"""
         self.epoch += 1
         self.step = 0
-        # TODO: Shuffle was here and should be here
 
     def __iter__(self):
         return self
@@ -225,7 +230,7 @@ class BatchGenerator:
         for shared_mem in self._cache_memory_data + self._cache_memory_labels + [self._cache_memory_indices]:
             shared_mem.close()
 
-        if self.process_id == "main":
+        if self._process_id == "main":
             self.stop_event.set()   # Sends signal to stop to all the workers
 
             # Terminates all the workers
@@ -253,6 +258,7 @@ if __name__ == '__main__':
     verbose = args.verbose
 
     def test():
+        """Function used to run tests on the BatchGenerator"""
         # Prepare mock dataset
         nb_datapoints = 18
         data = np.arange(nb_datapoints)
