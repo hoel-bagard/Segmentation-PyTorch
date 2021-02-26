@@ -55,6 +55,21 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
+
+    # TODO: Have nb_workers in the config
+    # TODO: Have a data  loading helper in the condig ?
+    from src.dataset.dice_loader import load_dice
+    from src.torch_utils.utils.batch_generator import BatchGenerator
+    data, labels = load_dice(DataConfig.DATA_PATH / "Train", limit=args.limit, load_data=args.load_data)
+
+    data_preprocessing_fn = 1 if args.load_data else 2
+    train_dataloader = BatchGenerator(data, labels, ModelConfig.BATCH_SIZE, nb_workers=4, shuffle=True)
+
+
+    print("Work in progress")
+    exit()
+
+
     train_dataset = Dataset(DataConfig.DATA_PATH / "Train",
                             limit=args.limit,
                             load_data=args.load_data,
