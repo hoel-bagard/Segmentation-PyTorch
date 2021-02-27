@@ -55,6 +55,10 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
+    # get_mask_path_dice = lambda img_path: Path(str(img_path.stem) + "_segDotsTopOnly.png")
+    get_mask_path_tape = lambda img_path: img_path.parent \
+        / "_".join(str(img_path.name).split("_")[:-1]) + "_mask_" + str(img_path.name).split("_")[-1]
+
 
     # TODO: Have nb_workers in the config
     # TODO: Have a data  loading helper in the condig ?
