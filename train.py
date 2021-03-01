@@ -7,16 +7,21 @@ from shutil import (
     copy
 )
 import torch
-from torchvision.transforms import Compose
 from torchsummary import summary
 
 from config.data_config import DataConfig
 from config.model_config import ModelConfig
-from src.dataset.dataset import Dataset
+from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.dataset.defeault_loader import (
+    default_loader,
+    default_load_data,
+    default_load_labels
+)
+import src.dataset.data_transformations as transforms
+from src.torch_utils.utils.misc import get_config_as_dict
 from src.networks.build_network import build_model
-from src.train import train
-import src.dataset.transforms as transforms
 from src.torch_utils.utils.misc import clean_print
+from src.train import train
 
 
 def main():
@@ -56,64 +61,55 @@ def main():
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
     # get_mask_path_dice = lambda img_path: Path(str(img_path.stem) + "_segDotsTopOnly.png")
-    get_mask_path_tape = lambda img_path: img_path.parent \
-        / "_".join(str(img_path.name).split("_")[:-1]) + "_mask_" + str(img_path.name).split("_")[-1]
+    def get_mask_path_tape(img_p: Path):
+        return img_p.parent / ("_".join(str(img_p.name).split("_")[:-1]) + "_mask_" + str(img_p.name).split("_")[-1])
 
+    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path_tape,
+                                              limit=args.limit, load_data=args.load_data,
+                                              data_preprocessing_fn=default_load_data if args.load_data else None,
+                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
+
+    augmentation_pipeline = transforms.compose_transformations((
+        transforms.random_crop(0.98),
+        transforms.normalize(labels_too=True),
+        transforms.vertical_flip,
+        transforms.horizontal_flip,
+        transforms.rotate180,
+    ))
 
     # TODO: Have nb_workers in the config
-    # TODO: Have a data  loading helper in the condig ?
-    from src.dataset.dice_loader import load_dice
-    from src.torch_utils.utils.batch_generator import BatchGenerator
-    data, labels = load_dice(DataConfig.DATA_PATH / "Train", limit=args.limit, load_data=args.load_data)
-
-    data_preprocessing_fn = 1 if args.load_data else 2
-    train_dataloader = BatchGenerator(data, labels, ModelConfig.BATCH_SIZE, nb_workers=4, shuffle=True)
-
-
-    print("Work in progress")
-    exit()
-
-
-    train_dataset = Dataset(DataConfig.DATA_PATH / "Train",
-                            limit=args.limit,
-                            load_data=args.load_data,
-                            transform=Compose([
-                                transforms.Crop(top=600, bottom=500, left=800, right=200),
-                                transforms.RandomCrop(0.98),
-                                transforms.Resize(*ModelConfig.IMAGE_SIZES),
-                                transforms.Normalize(),
-                                transforms.VerticalFlip(),
-                                transforms.HorizontalFlip(),
-                                transforms.Rotate180(),
-                                transforms.ToTensor(),
-                                transforms.Noise()
-                            ]))
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=ModelConfig.BATCH_SIZE,
-                                                   shuffle=True, num_workers=8)
-
+    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
+                                      data_preprocessing_fn=default_load_data if not args.load_data else None,
+                                      labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                                      augmentation_pipeline=augmentation_pipeline,
+                                      shuffle=True)
     clean_print("Train data loaded")
 
-    val_dataset = Dataset(DataConfig.DATA_PATH / "Validation",
-                          limit=args.limit,
-                          load_data=args.load_data,
-                          transform=Compose([
-                              transforms.Crop(top=600, bottom=500, left=800, right=200),
-                              transforms.Resize(*ModelConfig.IMAGE_SIZES),
-                              transforms.Normalize(),
-                              transforms.ToTensor()
-                          ]))
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=ModelConfig.BATCH_SIZE,
-                                                 shuffle=True, num_workers=8)
+    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path_tape,
+                                          limit=args.limit, load_data=args.load_data,
+                                          data_preprocessing_fn=default_load_data if args.load_data else None,
+                                          labels_preprocessing_fn=default_load_labels if args.load_data else None)
 
+    val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
+                                    data_preprocessing_fn=default_load_data if not args.load_data else None,
+                                    labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                                    augmentation_pipeline=None,
+                                    shuffle=True)
     clean_print("Validation data loaded")
 
-    print(f"\nLoaded {len(train_dataloader.dataset)} train data and",
-          f"{len(val_dataloader.dataset)} validation data", flush=True)
+    print(f"\nLoaded {len(train_dataloader)} train data and",
+          f"{len(val_dataloader)} validation data", flush=True)
 
-    model = build_model(ModelConfig.NETWORK)
+    gpu_augmentation_pipeline = transforms.compose_transformations((
+        transforms.to_tensor,
+        transforms.noise
+    ))
+
+    print("Building model. . .", end="\r")
+    model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, **get_config_as_dict(ModelConfig))
     summary(model, (3, ModelConfig.IMAGE_SIZES[0], ModelConfig.IMAGE_SIZES[1]))
 
-    train(model, train_dataloader, val_dataloader)
+    train(model, train_dataloader, val_dataloader, aug_pipeline=gpu_augmentation_pipeline)
 
 
 if __name__ == "__main__":

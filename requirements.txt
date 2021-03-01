@@ -1,9 +1,7 @@
 torch
-torchvision
 torchsummary
 tensorboard
 opencv-python
 numpy
 matplotlib
-moviepy
 einops

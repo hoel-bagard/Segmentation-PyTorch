@@ -1,5 +1,7 @@
 import random
-from typing import Callable
+from typing import (
+    Callable
+)
 
 import cv2
 import numpy as np
@@ -9,115 +11,81 @@ import torch
 # TODO: Use functools instead ?
 # https://docs.python.org/3/howto/functional.html#the-functools-module
 # https://docs.python.org/3/library/functools.html#functools.reduce
-def compose_transformations(functions: list[Callable[[np.ndarray, np.ndarray], [np.ndarray, np.ndarray]]]):
-    """ Returns a function that applies all the given functions"""
-    def compose_transformations_fn(img: np.ndarray, label: np.ndarray):
-        for fn in functions:
-            img, label = fn(img, label)
-        return img, label
+def compose_transformations(transformations: list[Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]]):
+    """ Returns a function that applies all the given transformations"""
+    def compose_transformations_fn(imgs: list[np.ndarray], labels: list[np.ndarray]):
+        """ Apply transformations on a batch of data"""
+        for fn in transformations:
+            imgs, labels = fn(imgs, labels)
+        return imgs, labels
     return compose_transformations_fn
-
-
-def crop(self, top: int = 0, bottom: int = 1, left: int = 0, right: int = 1):
-    """ Returns a function that crops an image """
-    def crop_fn(img, label):
-        return img[top:-bottom, left:-right], label[top:-bottom, left:-right]
-    return crop_fn
 
 
 def random_crop(reduction_factor: int = 0.9):
     """ Randomly crops image """
-    def random_crop_fn(img, label):
-        h = random.randint(0, int(img.shape[0]*(1-reduction_factor))-1)
-        w = random.randint(0, int(img.shape[1]*(1-reduction_factor))-1)
-        cropped_img = img[h:h+int(img.shape[0]*reduction_factor), w:w+int(img.shape[1]*reduction_factor)]
-        cropped_label = label[h:h+int(label.shape[0]*reduction_factor), w:w+int(label.shape[1]*reduction_factor)]
-        return cropped_img, cropped_label
+    def random_crop_fn(imgs: np.ndarray, labels: np.ndarray):
+        """ Randomly crops a batch of data (the "same" patch is taken across all images) """
+        h = random.randint(0, int(imgs.shape[1]*(1-reduction_factor))-1)
+        w = random.randint(0, int(imgs.shape[2]*(1-reduction_factor))-1)
+        cropped_imgs = imgs[:, h:h+int(imgs.shape[1]*reduction_factor), w:w+int(imgs.shape[2]*reduction_factor)]
+        cropped_labels = labels[:, h:h+int(labels.shape[1]*reduction_factor), w:w+int(labels.shape[2]*reduction_factor)]
+        return cropped_imgs, cropped_labels
+    return random_crop_fn
 
 
-
-class Resize(object):
-    """ Resize the image in a sample to a given size. """
-
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-
-    def __call__(self, sample):
-        img, label = sample['img'], sample['label']
-        img = cv2.resize(img, (self.width, self.height))
-        label = cv2.resize(label, (self.width, self.height))
-        return {'img': img, 'label': label}
+def normalize(labels_too: bool = True):
+    """ Normalize a batch of images so that its values are in [0, 1] """
+    def normalize_fn(imgs: np.ndarray, labels: np.ndarray):
+        return imgs/255.0, labels/255.0 if labels_too else labels
+    return normalize_fn
 
 
-class Normalize(object):
-    """ Normalize the image so that its values are in [0, 1] """
-
-    def __call__(self, sample):
-        img, label = sample['img'], sample['label']
-        return {'img': img/255.0, 'label': label}
-
-
-class VerticalFlip(object):
+def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
     """ Randomly flips the img around the x-axis """
-
-    def __call__(self, sample):
-        img, label = sample["img"], sample["label"]
+    for i in range(len(imgs)):
         if random.random() > 0.5:
-            img = cv2.flip(img, 0)
-            label = cv2.flip(label, 0)
-        return {"img": img, "label": label}
+            imgs[i] = cv2.flip(imgs[i], 0)
+            labels[i] = cv2.flip(labels[i], 0)
+    return imgs, labels
 
 
-class HorizontalFlip(object):
+def horizontal_flip(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """ Randomly flips the img around the y-axis """
-
-    def __call__(self, sample):
-        img, label = sample["img"], sample["label"]
+    for i in range(len(imgs)):
         if random.random() > 0.5:
-            img = cv2.flip(img, 1)
-            label = cv2.flip(label, 1)
+            imgs[i] = cv2.flip(imgs[i], 1)
+            labels[i] = cv2.flip(labels[i], 1)
+    return imgs, labels
 
-        return {"img": img, "label": label}
 
-
-class Rotate180(object):
+def rotate180(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """ Randomly rotate the image by 180 degrees """
-
-    def __call__(self, sample):
-        img, label = sample["img"], sample["label"]
+    for i in range(len(imgs)):
         if random.random() > 0.5:
-            img = cv2.rotate(img, cv2.ROTATE_180)
-            label = cv2.rotate(label, cv2.ROTATE_180)
-        return {"img": img, "label": label}
+            imgs[i] = cv2.rotate(imgs[i], cv2.ROTATE_180)
+            labels[i] = cv2.rotate(labels[i], cv2.ROTATE_180)
+    return imgs, labels
 
 
-class ToTensor(object):
+def to_tensor(imgs: np.ndarray, labels: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
     """Convert ndarrays in sample to Tensors."""
+    # swap color axis because
+    # numpy image: H x W x C
+    # torch image: C X H X W
 
-    def __call__(self, sample):
-        img, label = sample['img'], sample['label']
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
-
-        img = img.transpose((2, 0, 1))
-        label = np.expand_dims(label, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
-        label = label.transpose((2, 0, 1))
-        return {'img': torch.from_numpy(img),
-                'label': torch.from_numpy(label)}
+    imgs = imgs.transpose((0, 3, 1, 2))
+    if labels.ndim == 3:
+        labels = np.expand_dims(labels, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
+    labels = labels.transpose((0, 3, 1, 2))
+    return torch.from_numpy(imgs), torch.from_numpy(labels)
 
 
-class Noise(object):
+def noise(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """ Add random noise to the image """
+    noise_offset = (torch.rand(imgs.shape)-0.5)*0.05
+    noise_scale = (torch.rand(imgs.shape) * 0.2) + 0.9
 
-    def __call__(self, sample):
-        img, label = sample['img'], sample['label']
-        noise_offset = (torch.rand(img.shape)-0.5)*0.05
-        noise_scale = (torch.rand(img.shape) * 0.2) + 0.9
+    imgs = imgs * noise_scale + noise_offset
+    imgs = torch.clamp(imgs, 0, 1)
 
-        img = img * noise_scale + noise_offset
-        img = torch.clamp(img, 0, 1)
-
-        return {'img': img, 'label': label}
+    return imgs, labels

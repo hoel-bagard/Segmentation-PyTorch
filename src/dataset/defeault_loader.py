@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import (
     Callable,
-    Union
+    Union,
+    Optional
 )
 
 import cv2
@@ -11,8 +12,11 @@ from config.model_config import ModelConfig
 from src.torch_utils.utils.misc import clean_print
 
 
-def default_loader(data_path: Path, get_mask_path: Callable[Path, Path],
-                   limit: int = None, load_data: bool = False) -> tuple[np.ndarray, np.ndarray]:
+def default_loader(data_path: Path, get_mask_path_fn: Callable[Path, Path],
+                   limit: int = None, load_data: bool = False,
+                   data_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
+                   labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None
+                   ) -> tuple[np.ndarray, np.ndarray]:
     """
     Loads image and masks for image segmentation.
     Args:
@@ -20,7 +24,9 @@ def default_loader(data_path: Path, get_mask_path: Callable[Path, Path],
         get_mask_path: Function that returns the mask's path corresponding to a given image path
         limit (int, optional): If given then the number of elements for each class in the dataset
                             will be capped to this number
-        load_data: If true then this function returns the images instead of their paths
+        load_data: If true then this function returns the images instead of their paths using the preprocessing_fns
+        data_preprocessing_fn: Function used to load data from their paths.
+        labels_preprocessing_fn: Function used to load labels from their paths.
     Return:
         numpy array containing the paths/images and the associated label
     """
@@ -30,41 +36,46 @@ def default_loader(data_path: Path, get_mask_path: Callable[Path, Path],
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
     nb_imgs = len(file_list)
     for i, img_path in enumerate(file_list):
-        clean_print(f"Processing image {img_path.name}    ({i+1}/{nb_imgs})")
+        clean_print(f"Processing image {img_path.name}    ({i+1}/{nb_imgs})", end="\r")
 
-        segmentation_map_path = get_mask_path(img_path)
+        segmentation_map_path = get_mask_path_fn(img_path)
         if load_data:
-            data.append(default_load_data(img_path))
-            labels.append(default_load_labels(labels))
+            data.append(data_preprocessing_fn(img_path))
+            labels.append(labels_preprocessing_fn(segmentation_map_path))
         else:
             data.append(img_path)
             labels.append(segmentation_map_path)
 
-        if i >= limit:
+        if limit and i >= limit:
             break
 
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
+def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
+                      top: int = 0, bottom: int = 1, left: int = 0, right: int = 1) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
     """
-    if type(data) == Path:
-        img = cv2.imread(data)
+    if isinstance(data, Path):
+        img = cv2.imread(str(data))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
         # (I miss TF2 =(  )
+        # Resize the image in a sample to a given size.
         if ModelConfig.IMAGE_SIZES:
             img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
+        # Crop the image
+        if crop:
+            img[top:-bottom, left:-right]
         return img
     else:
         imgs = []
         for image_path in data:
             imgs.append(default_load_data(image_path))
-        return imgs
+        return np.asarray(imgs)
 
 
 # For segmentation the function to load labels is the same as the one used to load data
