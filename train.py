@@ -70,18 +70,27 @@ def main():
                                               labels_preprocessing_fn=default_load_labels if args.load_data else None)
 
     augmentation_pipeline = transforms.compose_transformations((
-        transforms.random_crop(0.98),
-        transforms.normalize(labels_too=True),
+        # transforms.random_crop(0.98),  # TODO: Need to resize after (or do something to make val the same size)
         transforms.vertical_flip,
         transforms.horizontal_flip,
         transforms.rotate180,
+    ))
+    # GPU pipeline used by both validation and train
+    base_gpu_pipeline = (
+        transforms.to_tensor,
+        transforms.normalize(labels_too=True),
+    )
+    train_gpu_augmentation_pipeline = transforms.compose_transformations((
+        *base_gpu_pipeline,
+        transforms.noise
     ))
 
     # TODO: Have nb_workers in the config
     train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
                                       data_preprocessing_fn=default_load_data if not args.load_data else None,
                                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
-                                      augmentation_pipeline=augmentation_pipeline,
+                                      aug_pipeline=augmentation_pipeline,
+                                      gpu_augmentation_pipeline=train_gpu_augmentation_pipeline,
                                       shuffle=True)
     clean_print("Train data loaded")
 
@@ -93,23 +102,18 @@ def main():
     val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
                                     data_preprocessing_fn=default_load_data if not args.load_data else None,
                                     labels_preprocessing_fn=default_load_labels if not args.load_data else None,
-                                    augmentation_pipeline=None,
-                                    shuffle=True)
+                                    gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),
+                                    shuffle=False)
     clean_print("Validation data loaded")
 
     print(f"\nLoaded {len(train_dataloader)} train data and",
           f"{len(val_dataloader)} validation data", flush=True)
 
-    gpu_augmentation_pipeline = transforms.compose_transformations((
-        transforms.to_tensor,
-        transforms.noise
-    ))
-
     print("Building model. . .", end="\r")
     model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, **get_config_as_dict(ModelConfig))
     summary(model, (3, ModelConfig.IMAGE_SIZES[0], ModelConfig.IMAGE_SIZES[1]))
 
-    train(model, train_dataloader, val_dataloader, aug_pipeline=gpu_augmentation_pipeline)
+    train(model, train_dataloader, val_dataloader)
 
 
 if __name__ == "__main__":

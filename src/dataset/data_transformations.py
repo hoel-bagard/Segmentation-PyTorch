@@ -33,13 +33,6 @@ def random_crop(reduction_factor: int = 0.9):
     return random_crop_fn
 
 
-def normalize(labels_too: bool = True):
-    """ Normalize a batch of images so that its values are in [0, 1] """
-    def normalize_fn(imgs: np.ndarray, labels: np.ndarray):
-        return imgs/255.0, labels/255.0 if labels_too else labels
-    return normalize_fn
-
-
 def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
     """ Randomly flips the img around the x-axis """
     for i in range(len(imgs)):
@@ -78,6 +71,13 @@ def to_tensor(imgs: np.ndarray, labels: np.ndarray) -> tuple[torch.Tensor, torch
         labels = np.expand_dims(labels, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
     labels = labels.transpose((0, 3, 1, 2))
     return torch.from_numpy(imgs), torch.from_numpy(labels)
+
+
+def normalize(labels_too: bool = True):
+    """ Normalize a batch of images so that its values are in [0, 1] """
+    def normalize_fn(imgs: torch.Tensor, labels: torch.Tensor):
+        return imgs/255.0, labels/255.0 if labels_too else labels
+    return normalize_fn
 
 
 def noise(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

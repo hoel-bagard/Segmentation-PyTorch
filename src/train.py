@@ -1,14 +1,8 @@
 import time
 import os
-from typing import (
-    Callable,
-    Optional
-)
 
 import torch
 import torch.nn as nn
-from torch import Tensor
-import numpy as np
 
 
 from config.data_config import DataConfig
@@ -18,21 +12,20 @@ from src.torch_utils.utils.trainer import Trainer
 from src.torch_utils.utils.tensorboard import TensorBoard
 from src.torch_utils.utils.metrics import Metrics
 from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.torch_utils.utils.ressource_usage import resource_usage
 
 
-def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: BatchGenerator,
-          aug_pipeline: Optional[Callable[[np.ndarray, np.ndarray], tuple[Tensor, Tensor]]] = None):
+def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: BatchGenerator):
     """
     Creates model corresponding to the given name.
     Args:
         model: Model to train
         train_dataloader: BatchGenerator of training data
         val_dataloader: BatchGenerator of validation data
-        aug_pipeline: Function that takes in data and labels and do some data augmentation on them
     """
     loss_fn = CE_Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=ModelConfig.LR, weight_decay=ModelConfig.REG_FACTOR)
-    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader, aug_pipeline=aug_pipeline)
+    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
 
     if DataConfig.USE_TB:
