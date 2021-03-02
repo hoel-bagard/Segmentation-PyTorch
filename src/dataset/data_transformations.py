@@ -45,6 +45,7 @@ def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
 def horizontal_flip(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """ Randomly flips the img around the y-axis """
     for i in range(len(imgs)):
+        print("FLIP")
         if random.random() > 0.5:
             imgs[i] = cv2.flip(imgs[i], 1)
             labels[i] = cv2.flip(labels[i], 1)
@@ -60,17 +61,21 @@ def rotate180(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndar
     return imgs, labels
 
 
-def to_tensor(imgs: np.ndarray, labels: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
-    """Convert ndarrays in sample to Tensors."""
-    # swap color axis because
-    # numpy image: H x W x C
-    # torch image: C X H X W
+def to_tensor():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # TODO: remove the hardcoded 0 ?
 
-    imgs = imgs.transpose((0, 3, 1, 2))
-    if labels.ndim == 3:
-        labels = np.expand_dims(labels, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
-    labels = labels.transpose((0, 3, 1, 2))
-    return torch.from_numpy(imgs), torch.from_numpy(labels)
+    def to_tensor_fn(imgs: np.ndarray, labels: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
+        """Convert ndarrays in sample to Tensors."""
+        # swap color axis because
+        # numpy image: H x W x C
+        # torch image: C X H X W
+
+        imgs = imgs.transpose((0, 3, 1, 2))
+        if labels.ndim == 3:
+            labels = np.expand_dims(labels, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
+        labels = labels.transpose((0, 3, 1, 2))
+        return torch.from_numpy(imgs).to(device), torch.from_numpy(labels).to(device)
+    return to_tensor_fn
 
 
 def normalize(labels_too: bool = True):
@@ -80,12 +85,16 @@ def normalize(labels_too: bool = True):
     return normalize_fn
 
 
-def noise(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """ Add random noise to the image """
-    noise_offset = (torch.rand(imgs.shape)-0.5)*0.05
-    noise_scale = (torch.rand(imgs.shape) * 0.2) + 0.9
+def noise():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # TODO: remove the hardcoded 0 ?
 
-    imgs = imgs * noise_scale + noise_offset
-    imgs = torch.clamp(imgs, 0, 1)
+    def noise_fn(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """ Add random noise to the image """
+        noise_offset = (torch.rand(imgs.shape, device=device)-0.5)*0.05
+        noise_scale = (torch.rand(imgs.shape, device=device) * 0.2) + 0.9
 
-    return imgs, labels
+        imgs = imgs * noise_scale + noise_offset
+        imgs = torch.clamp(imgs, 0, 1)
+
+        return imgs, labels
+    return noise_fn

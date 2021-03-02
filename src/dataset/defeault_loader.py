@@ -12,7 +12,7 @@ from config.model_config import ModelConfig
 from src.torch_utils.utils.misc import clean_print
 
 
-def default_loader(data_path: Path, get_mask_path_fn: Callable[Path, Path],
+def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
                    limit: int = None, load_data: bool = False,
                    data_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
                    labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None
@@ -78,5 +78,31 @@ def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
         return np.asarray(imgs)
 
 
-# For segmentation the function to load labels is the same as the one used to load data
-default_load_labels = default_load_data
+def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False, grayscale: bool = True,
+                        top: int = 0, bottom: int = 1, left: int = 0, right: int = 1) -> np.ndarray:
+    """
+    Function that loads image(s) from path(s)
+    Args:
+        data: either an image path or a batch of image paths, and return the loaded image(s)
+    """
+    if isinstance(label_paths, Path):
+        img = cv2.imread(str(label_paths))
+        # TODO: Trying to use grayscale blocks the BatchGenerator for some reason...
+        if grayscale:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
+        # (I miss TF2 =(  )
+        # Resize the image in a sample to a given size.
+        if ModelConfig.IMAGE_SIZES:
+            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
+        # Crop the image
+        if crop:
+            img[top:-bottom, left:-right]
+        return img
+    else:
+        imgs = []
+        for image_path in label_paths:
+            imgs.append(default_load_data(image_path))
+        return np.asarray(imgs)

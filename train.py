@@ -77,12 +77,12 @@ def main():
     ))
     # GPU pipeline used by both validation and train
     base_gpu_pipeline = (
-        transforms.to_tensor,
+        transforms.to_tensor(),
         transforms.normalize(labels_too=True),
     )
     train_gpu_augmentation_pipeline = transforms.compose_transformations((
         *base_gpu_pipeline,
-        transforms.noise
+        transforms.noise()
     ))
 
     # TODO: Have nb_workers in the config
