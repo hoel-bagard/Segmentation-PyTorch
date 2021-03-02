@@ -30,9 +30,9 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
     if DataConfig.USE_TB:
         metrics = Metrics(model, loss_fn, train_dataloader, val_dataloader,
-                          DataConfig.LABEL_MAP, max_batches=None)
+                          DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
         tensorboard = TensorBoard(model, metrics, DataConfig.LABEL_MAP, DataConfig.TB_DIR,
-                                  ModelConfig.IMAGE_SIZES)
+                                  ModelConfig.IMAGE_SIZES, segmentation=True)
 
     best_loss = 1000
     last_checkpoint_epoch = 0
@@ -66,38 +66,20 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
                     if DataConfig.USE_TB:
                         print("\nStarting to compute TensorBoard metrics", end="\r", flush=True)
-                        tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
-
-                        # Write exemple of predictions
-                        tensorboard.write_images(epoch, train_dataloader)
-                        tensorboard.write_images(epoch, val_dataloader, mode="Validation")
-
-
-
-                        # TODO: Validation loop used for videos
-                        # print("\nStarting to compute TensorBoard metrics", end="\r", flush=True)
                         # # TODO: Uncomment line bellow and see if it works properly
                         # # tensorboard.write_weights_grad(epoch)
-                        # tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
+                        tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
 
-                        # # Metrics for the Train dataset
-                        # tensorboard.write_images(epoch, train_dataloader, input_is_video=True,
-                        #                          preprocess_fn=preprocess_fn, postprocess_fn=postprocess_fn)
-                        # if epoch % (3*DataConfig.VAL_FREQ) == 0:
-                        #     tensorboard.write_videos(epoch, train_dataloader,
-                        #                              preprocess_fn=preprocess_fn, postprocess_fn=postprocess_fn)
-                        # train_acc = tensorboard.write_metrics(epoch, write_defect_acc=True)
+                        # Metrics for the Train dataset
+                        tensorboard.write_segmentation(epoch, train_dataloader)
+                        train_acc = tensorboard.write_metrics(epoch)
 
-                        # # Metrics for the Validation dataset
-                        # tensorboard.write_images(epoch, val_dataloader, mode="Validation", input_is_video=True,
-                        #                          preprocess_fn=preprocess_fn, postprocess_fn=postprocess_fn)
-                        # if epoch % (3*DataConfig.VAL_FREQ) == 0:
-                        #     tensorboard.write_videos(epoch, val_dataloader, mode="Validation",
-                        #                              preprocess_fn=preprocess_fn, postprocess_fn=postprocess_fn)
-                        # val_acc = tensorboard.write_metrics(epoch, mode="Validation", write_defect_acc=True)
+                        # Metrics for the Validation dataset
+                        tensorboard.write_segmentation(epoch, val_dataloader, mode="Validation")
+                        val_acc = tensorboard.write_metrics(epoch, mode="Validation")
 
-                        # print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}",
-                        #       end='\r', flush=True)
+                        print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}",
+                              end='\r', flush=True)
 
                     print(f"\nValidation loss: {epoch_loss:.5e}  -"
                           f"  Took {time.perf_counter() - validation_start_time:.5f}s", flush=True)
