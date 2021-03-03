@@ -1,4 +1,5 @@
 from pathlib import Path
+from itertools import product
 from typing import (
     Callable,
     Union,
@@ -9,6 +10,7 @@ import cv2
 import numpy as np
 
 from config.model_config import ModelConfig
+from config.data_config import DataConfig
 from src.torch_utils.utils.misc import clean_print
 
 
@@ -35,8 +37,8 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     exts = [".jpg", ".png"]
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
     nb_imgs = len(file_list)
-    for i, img_path in enumerate(file_list):
-        clean_print(f"Processing image {img_path.name}    ({i+1}/{nb_imgs})", end="\r")
+    for i, img_path in enumerate(file_list, start=1):
+        clean_print(f"Processing image {img_path.name}    ({i}/{nb_imgs})", end="\r")
 
         segmentation_map_path = get_mask_path_fn(img_path)
         if load_data:
@@ -62,14 +64,15 @@ def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
     if isinstance(data, Path):
         img = cv2.imread(str(data))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # TODO: Move resize and crop to the pipeline
         # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
         # (I miss TF2 =(  )
-        # Resize the image in a sample to a given size.
-        if ModelConfig.IMAGE_SIZES:
-            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
-        # Crop the image
-        if crop:
-            img[top:-bottom, left:-right]
+        # # Resize the image in a sample to a given size.
+        # if ModelConfig.IMAGE_SIZES:
+        #     img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
+        # # Crop the image
+        # if crop:
+        #     img[top:-bottom, left:-right]
         return img
     else:
         imgs = []
@@ -78,7 +81,7 @@ def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False, grayscale: bool = True,
+def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False,
                         top: int = 0, bottom: int = 1, left: int = 0, right: int = 1) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
@@ -87,22 +90,25 @@ def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False
     """
     if isinstance(label_paths, Path):
         img = cv2.imread(str(label_paths))
-        # TODO: Trying to use grayscale blocks the BatchGenerator for some reason...
-        if grayscale:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        else:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Transform the mask into a one hot mask
+        width, height, _ = img.shape
+        one_hot_mask = np.zeros((width, height, DataConfig.OUTPUT_CLASSES))
+        for key in range(len(DataConfig.COLOR_MAP)):
+            one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
+
+        # TODO: have an assert to check that each "pixel" has a value?
+
         # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
         # (I miss TF2 =(  )
         # Resize the image in a sample to a given size.
-        if ModelConfig.IMAGE_SIZES:
-            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
+        # if ModelConfig.IMAGE_SIZES:
+        #     img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
         # Crop the image
-        if crop:
-            img[top:-bottom, left:-right]
-        return img
+        # if crop:
+        #     img[top:-bottom, left:-right]
+        return one_hot_mask
     else:
-        imgs = []
-        for image_path in label_paths:
-            imgs.append(default_load_data(image_path))
-        return np.asarray(imgs)
+        img_masks = np.asarray([default_load_labels(image_path) for image_path in label_paths])
+        return img_masks

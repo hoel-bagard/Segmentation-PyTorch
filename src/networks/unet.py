@@ -46,7 +46,7 @@ class UDarkNet(nn.Module):
                                                for i in range(1, len(channels))])
         self.conv_trans = nn.ModuleList([ConvTranspose(channels[i], channels[i-1], 3)
                                          for i in range(1, len(channels))])
-        self.last_conv = nn.Conv2d(in_channels=channels[0], out_channels=1, kernel_size=1, stride=1)
+        self.last_conv = nn.Conv2d(in_channels=channels[0], out_channels=output_classes, kernel_size=1, stride=1)
 
         if layer_init:
             self.apply(layer_init)

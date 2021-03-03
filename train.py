@@ -86,7 +86,7 @@ def main():
     ))
 
     # TODO: Have nb_workers in the config
-    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
+    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=1,
                                       data_preprocessing_fn=default_load_data if not args.load_data else None,
                                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                                       aug_pipeline=augmentation_pipeline,
@@ -99,7 +99,7 @@ def main():
                                           data_preprocessing_fn=default_load_data if args.load_data else None,
                                           labels_preprocessing_fn=default_load_labels if args.load_data else None)
 
-    val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=4,
+    val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=1,
                                     data_preprocessing_fn=default_load_data if not args.load_data else None,
                                     labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                                     gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),

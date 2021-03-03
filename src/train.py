@@ -1,5 +1,6 @@
 import time
 import os
+import subprocess
 
 import torch
 import torch.nn as nn
@@ -32,7 +33,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
         metrics = Metrics(model, loss_fn, train_dataloader, val_dataloader,
                           DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
         tensorboard = TensorBoard(model, metrics, DataConfig.LABEL_MAP, DataConfig.TB_DIR,
-                                  ModelConfig.IMAGE_SIZES, segmentation=True)
+                                  ModelConfig.IMAGE_SIZES, segmentation=True, color_map=DataConfig.COLOR_MAP)
 
     best_loss = 1000
     last_checkpoint_epoch = 0
@@ -87,9 +88,12 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
     except KeyboardInterrupt:
         print("\n")
 
-    train_stop_time = time.time()
-    tensorboard.close_writers()
-    memory_peak, gpu_memory = resource_usage()
-    print("Finished Training"
-          f"\n\tTraining time : {train_stop_time - train_start_time:.03f}s"
-          f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}")
+    try:
+        train_stop_time = time.time()
+        tensorboard.close_writers()
+        memory_peak, gpu_memory = resource_usage()
+        print("Finished Training"
+              f"\n\tTraining time : {train_stop_time - train_start_time:.03f}s"
+              f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}")
+    except subprocess.CalledProcessError:
+        print("Finished training")

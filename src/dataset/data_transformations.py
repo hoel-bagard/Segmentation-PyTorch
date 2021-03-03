@@ -38,17 +38,16 @@ def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
     for i in range(len(imgs)):
         if random.random() > 0.5:
             imgs[i] = cv2.flip(imgs[i], 0)
-            labels[i] = cv2.flip(labels[i], 0)
+            labels[i] = labels[i, ::-1]
     return imgs, labels
 
 
 def horizontal_flip(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """ Randomly flips the img around the y-axis """
     for i in range(len(imgs)):
-        print("FLIP")
         if random.random() > 0.5:
             imgs[i] = cv2.flip(imgs[i], 1)
-            labels[i] = cv2.flip(labels[i], 1)
+            labels[i] = labels[i, :, ::-1]
     return imgs, labels
 
 
@@ -57,7 +56,7 @@ def rotate180(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndar
     for i in range(len(imgs)):
         if random.random() > 0.5:
             imgs[i] = cv2.rotate(imgs[i], cv2.ROTATE_180)
-            labels[i] = cv2.rotate(labels[i], cv2.ROTATE_180)
+            labels[i] = np.rot90(labels[i], k=2)
     return imgs, labels
 
 
@@ -71,8 +70,6 @@ def to_tensor():
         # torch image: C X H X W
 
         imgs = imgs.transpose((0, 3, 1, 2))
-        if labels.ndim == 3:
-            labels = np.expand_dims(labels, axis=-1)  # Because opencv removes the channel dimension for greyscale imgs
         labels = labels.transpose((0, 3, 1, 2))
         return torch.from_numpy(imgs).to(device), torch.from_numpy(labels).to(device)
     return to_tensor_fn

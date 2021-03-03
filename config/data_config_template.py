@@ -1,4 +1,5 @@
 from pathlib import Path
+from json import load
 
 
 class DataConfig:
@@ -15,9 +16,11 @@ class DataConfig:
     RECORD_START       = 10                  # Checkpoints and TensorBoard are not recorded before this epoch
 
     # Build a map between id and names
-    LABEL_MAP = {}
-    with open(DATA_PATH / "classes.names") as table_file:
-        for key, line in enumerate(table_file):
-            label = line.strip()
-            LABEL_MAP[key] = label
+    LABEL_MAP = {}   # Maps an int to a class name
+    COLOR_MAP = {}   # Maps an int to a color (corresponding to a class)
+    with open(DATA_PATH / "classes.json") as json_file:
+        data = load(json_file)
+        for key, entry in enumerate(data):
+            LABEL_MAP[key] = entry["name"]
+            COLOR_MAP[key] = entry["color"]
     OUTPUT_CLASSES = len(LABEL_MAP)
