@@ -1,9 +1,92 @@
-import argparse
+from argparse import ArgumentParser
 from pathlib import Path
 from shutil import get_terminal_size
+from itertools import product
+from multiprocessing import Pool
+import os
+
 
 import cv2
 import numpy as np
+from tqdm import tqdm
+
+
+def grid_search_worker(args):
+    file_list, filter_by_area, min_area, filter_by_circularity, min_circularity = args[:5]
+    filter_by_convexity, min_treshold, max_treshold = args[5:]
+
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByArea = filter_by_area
+    params.minArea = float(min_area)
+    params.maxArea = 50000
+    params.filterByCircularity = filter_by_circularity
+    params.minCircularity = min_circularity
+    params.filterByConvexity = filter_by_convexity
+    params.minConvexity = 0.5
+    params.filterByInertia = False
+    params.minThreshold = int(min_treshold)
+    params.maxThreshold = int(max_treshold)
+    detector = cv2.SimpleBlobDetector_create(params)
+
+    # Variable used to store results
+    true_negs = 0.0
+    true_pos = 0.0
+
+    for i, img_path in enumerate(file_list):
+        img = cv2.imread(str(img_path), 0)  # 0 to read in grayscale mode
+        # Run the blob detector on the image and store the result
+        keypoints_pred = detector.detect(img)
+        if "bad" in str(img_path):
+            if len(keypoints_pred) > 0:
+                true_negs += 1
+        else:
+            if len(keypoints_pred) == 0:
+                true_pos += 1
+
+    return (true_negs, true_pos)
+
+
+def grid_search(data_path: Path):
+    # Define all the parameters to search against
+    # SimpleBlobDetector parameters
+    filter_by_area = [True, False]
+    min_area = np.arange(2, 50, 4)
+    filter_by_circularity = [True, False]
+    min_circularity = [0.1, 0.3]
+    filter_by_convexity = [True, False]
+    min_treshold = np.arange(2, 40, 3)
+    max_treshold = [100, 175, 250]
+
+    exts = [".jpg", ".png"]
+    file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
+    neg_elts = len([path for path in file_list if "bad" in str(path)])
+    pos_elts = len([path for path in file_list if "bad" not in str(path)])
+
+    # Put all the variables into a list, then use itertools to get all the possible combinations
+    mp_args = list(product((file_list,), filter_by_area, min_area, filter_by_circularity, min_circularity,
+                           filter_by_convexity, min_treshold, max_treshold))
+    print(f"Starting grid search over the {len(mp_args)} possibility and {len(file_list)} images.")
+    results = []
+    with Pool(processes=int(os.cpu_count() * 0.8)) as pool:
+        for result in tqdm(pool.imap(grid_search_worker, mp_args, chunksize=10), total=len(mp_args)):
+            results.append(result)
+
+    stats = []
+    for true_negs, true_pos in results:
+        precision = true_pos / (true_pos + (neg_elts-true_negs))
+        recall = true_pos / pos_elts
+        acc = (true_pos + true_negs) / (neg_elts + pos_elts)
+        pos_acc = true_pos / pos_elts
+        neg_acc = true_negs / neg_elts
+        stats.append((precision, recall, acc, pos_acc, neg_acc))
+
+    stats = np.asarray(stats)
+    best_precision_idx = np.argsort(stats, axis=0)[:5]
+
+    print("\nFinished runnig grid_search on the dataset")
+    print(f"Dataset was composed of {pos_elts} good samples and {neg_elts} bad samples")
+    print(f"Best precision are:\n{stats[best_precision_idx]}\nObtained with:\n{mp_args[best_precision_idx][1:]}")
 
 
 def show_image(img, title: str = "Image"):
@@ -16,14 +99,19 @@ def show_image(img, title: str = "Image"):
 
 
 def main():
-    parser = argparse.ArgumentParser("Cuts images and corresponding masks into small tiles")
+    parser = ArgumentParser("Cuts images and corresponding masks into small tiles")
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("--show_missed", "--s", action="store_true",
                         help="Show sample where the blob detection failed")
     parser.add_argument("--debug", "--d", action="store_true", help="Show every sample")
+    parser.add_argument("--grid_search", "--g", action="store_true", help="Use grid search to find the best parameters")
     args = parser.parse_args()
 
     data_path: Path = args.data_path
+
+    if args.grid_search:
+        grid_search(args.data_path)
+        return
 
     pos_truths = 0.0
     neg_truths = 0.0
@@ -94,7 +182,7 @@ def main():
 
         # Run the blob detector on the image and store the results
         keypoints_pred = detector.detect(img)
-        if "bad" in str(img_path):  # or "ng" in img_path.stem:
+        if "bad" in str(img_path):
             if len(keypoints_pred) > 0:
                 neg_truths += 1
             elif args.show_missed:
