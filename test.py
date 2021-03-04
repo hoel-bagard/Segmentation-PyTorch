@@ -40,6 +40,8 @@ def main():
     parser.add_argument("--show_imgs", "--s", action="store_true", help="Show predicted segmentation masks")
     parser.add_argument("--use_blob_detection", "--b", action="store_true",
                         help="Use blob detection on predicted masks to get a binary classification")
+    parser.add_argument("--show_missed", "--sm", action="store_true",
+                        help="Show samples where the blob detection failed")
     args = parser.parse_args()
 
     # Creates and load the model
@@ -71,6 +73,12 @@ def main():
         params.maxArea = 50000
         params.minThreshold = 5
         params.maxThreshold = 250
+
+        params.filterByCircularity = False
+        params.filterByColor = False
+        params.filterByConvexity = False
+        params.filterByInertia = False
+
         detector = cv2.SimpleBlobDetector_create(params)
 
     with torch.no_grad():
@@ -124,7 +132,7 @@ def main():
                             if len(keypoints_pred) > 0:
                                 true_negs += 1
                             elif args.show_missed:
-                                img = rearrange(inputs, "c w h -> w h c").cpu().detach().numpy()
+                                img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
                                 img = np.asarray(img * 255.0, dtype=np.uint8)
                                 img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
                                                                        (255, 0, 0),
@@ -135,6 +143,8 @@ def main():
                             if len(keypoints_pred) == 0:
                                 true_pos += 1
                             elif args.show_missed:
+                                img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
+                                img = np.asarray(img * 255.0, dtype=np.uint8)
                                 img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
                                                                        (255, 0, 0),
                                                                        cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -143,10 +153,10 @@ def main():
 
     if args.use_blob_detection:
         precision = true_pos / (true_pos + (neg_elts-true_negs))
-        recall = true_pos / pos_elts
+        recall = true_pos / max(1, pos_elts)
         acc = (true_pos + true_negs) / (neg_elts + pos_elts)
-        pos_acc = true_pos / pos_elts
-        neg_acc = true_negs / neg_elts
+        pos_acc = true_pos / max(1, pos_elts)
+        neg_acc = true_negs / max(1, neg_elts)
 
         stats = (precision, recall, acc, pos_acc, neg_acc)
         stats_names = ("Precision", "Recall", "Accuracy", "Positive accuracy", "Negative accuracy")

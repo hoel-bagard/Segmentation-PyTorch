@@ -107,7 +107,7 @@ def main():
     parser = ArgumentParser("Cuts images and corresponding masks into small tiles")
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("--show_missed", "--s", action="store_true",
-                        help="Show sample where the blob detection failed")
+                        help="Show samples where the blob detection failed")
     parser.add_argument("--debug", "--d", action="store_true", help="Show every sample")
     parser.add_argument("--grid_search", "--g", action="store_true", help="Use grid search to find the best parameters")
     args = parser.parse_args()
