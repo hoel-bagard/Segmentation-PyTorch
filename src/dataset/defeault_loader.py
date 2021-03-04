@@ -60,6 +60,8 @@ def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
+    Returns:
+        Image or batch of image
     """
     if isinstance(data, Path):
         img = cv2.imread(str(data))
@@ -87,6 +89,8 @@ def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
+    Returns:
+        Segmentation mask or batch of segmentation masks
     """
     if isinstance(label_paths, Path):
         img = cv2.imread(str(label_paths))

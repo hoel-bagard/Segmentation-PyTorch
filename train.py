@@ -17,6 +17,7 @@ from src.dataset.defeault_loader import (
     default_load_data,
     default_load_labels
 )
+from src.dataset.dataset_specific_fn import get_mask_path_tape as get_mask_path
 import src.dataset.data_transformations as transforms
 from src.torch_utils.utils.misc import get_config_as_dict
 from src.networks.build_network import build_model
@@ -60,11 +61,7 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-    # get_mask_path_dice = lambda img_path: Path(str(img_path.stem) + "_segDotsTopOnly.png")
-    def get_mask_path_tape(img_p: Path):
-        return img_p.parent / ("_".join(str(img_p.name).split("_")[:-1]) + "_mask_" + str(img_p.name).split("_")[-1])
-
-    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path_tape,
+    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path,
                                               limit=args.limit, load_data=args.load_data,
                                               data_preprocessing_fn=default_load_data if args.load_data else None,
                                               labels_preprocessing_fn=default_load_labels if args.load_data else None)
@@ -85,8 +82,7 @@ def main():
         transforms.noise()
     ))
 
-    # TODO: Have nb_workers in the config
-    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=16,
+    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                                       data_preprocessing_fn=default_load_data if not args.load_data else None,
                                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                                       aug_pipeline=augmentation_pipeline,
@@ -94,12 +90,12 @@ def main():
                                       shuffle=True)
     clean_print("Train data loaded")
 
-    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path_tape,
+    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path,
                                           limit=args.limit, load_data=args.load_data,
                                           data_preprocessing_fn=default_load_data if args.load_data else None,
                                           labels_preprocessing_fn=default_load_labels if args.load_data else None)
 
-    val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=16,
+    val_dataloader = BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                                     data_preprocessing_fn=default_load_data if not args.load_data else None,
                                     labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                                     gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),

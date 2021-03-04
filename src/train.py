@@ -30,7 +30,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
 
     if DataConfig.USE_TB:
-        metrics = Metrics(model, loss_fn, train_dataloader, val_dataloader,
+        metrics = Metrics(model, train_dataloader, val_dataloader,
                           DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
         tensorboard = TensorBoard(model, metrics, DataConfig.LABEL_MAP, DataConfig.TB_DIR,
                                   ModelConfig.IMAGE_SIZES, segmentation=True, color_map=DataConfig.COLOR_MAP)

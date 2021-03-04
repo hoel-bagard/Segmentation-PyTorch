@@ -15,6 +15,9 @@ class DataConfig:
     VAL_FREQ           = 20                  # How often to compute accuracy and images (also used for validation freq)
     RECORD_START       = 10                  # Checkpoints and TensorBoard are not recorded before this epoch
 
+    # Dataloading
+    NB_WORKERS = 8  # Number of workers to use for dataloading
+
     # Build a map between id and names
     LABEL_MAP = {}   # Maps an int to a class name
     COLOR_MAP = {}   # Maps an int to a color (corresponding to a class)

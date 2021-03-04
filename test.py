@@ -1,55 +1,162 @@
-import argparse
-import glob
-import os
+from argparse import ArgumentParser
+from pathlib import Path
 
-import torch
-from torchvision.transforms import Compose
 import cv2
+from einops import rearrange
+import numpy as np
+import torch
 
 from config.data_config import DataConfig
 from config.model_config import ModelConfig
 from src.networks.build_network import build_model
-import src.dataset.transforms as transforms
+import src.dataset.data_transformations as transforms
+from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.dataset.defeault_loader import (
+    default_loader,
+    default_load_data,
+    default_load_labels
+)
+from src.dataset.dataset_specific_fn import get_mask_path_tape as get_mask_path
+from src.torch_utils.utils.draw import draw_segmentation
+from src.torch_utils.utils.metrics import Metrics
+
+
+def show_image(img, title: str = "Image"):
+    while True:
+        cv2.imshow(title, img)
+        key = cv2.waitKey(10)
+        if key == ord("q"):
+            cv2.destroyAllWindows()
+            break
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("model_path", help="Path to the checkpoint to use")
-    parser.add_argument("data_path", help="Path to the test dataset")
+    parser = ArgumentParser()
+    parser.add_argument("model_path", type=Path, help="Path to the checkpoint to use")
+    parser.add_argument("data_path", type=Path, help="Path to the test dataset")
+    parser.add_argument("--show_imgs", "--s", action="store_true", help="Show predicted segmentation masks")
+    parser.add_argument("--use_blob_detection", "--b", action="store_true",
+                        help="Use blob detection on predicted masks to get a binary classification")
     args = parser.parse_args()
 
     # Creates and load the model
     model = build_model(ModelConfig.NETWORK, args.model_path, eval=True)
     print("Weights loaded", flush=True)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # Create dataloader
     label_map = DataConfig.LABEL_MAP
-    transform = Compose([
-        transforms.Crop(top=600, bottom=500, left=800, right=200),
-        transforms.Resize(*ModelConfig.IMAGE_SIZES),
-        transforms.Normalize(),
-        transforms.ToTensor()
-    ])
+    batch_size = 1
+    base_gpu_pipeline = (transforms.to_tensor(), transforms.normalize(labels_too=True))
+    data, labels = default_loader(args.data_path, get_mask_path_fn=get_mask_path)
+    dataloader = BatchGenerator(data, labels, batch_size, nb_workers=DataConfig.NB_WORKERS,
+                                data_preprocessing_fn=default_load_data,
+                                labels_preprocessing_fn=default_load_labels,
+                                gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline))
 
-    img_types = ("*.jpg", "*.bmp")
-    for key in range(len(label_map)):
-        pathname = os.path.join(args.data_path, label_map[key], "**")
-        image_paths = []
-        [image_paths.extend(glob.glob(os.path.join(pathname, ext), recursive=True)) for ext in img_types]
-        for img_path in image_paths:
-            msg = f"Loading data {img_path}"
-            print(msg + ' ' * (os.get_terminal_size()[0] - len(msg)), end="\r")
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = transform({"img": img, "label": 0})["img"]   # The 0 is ignored
-            img = img.unsqueeze(0).to(device).float()
+    if args.use_blob_detection:
+        # Variables used to keep track of the classification results
+        true_negs = 0.0
+        true_pos = 0.0
+        pos_elts = 0
+        neg_elts = 0
 
-            output = model(img)
+        # Setup SimpleBlobDetector parameters.
+        params = cv2.SimpleBlobDetector_Params()
+        params.filterByArea = True
+        params.minArea = 50
+        params.maxArea = 50000
+        params.minThreshold = 5
+        params.maxThreshold = 250
+        detector = cv2.SimpleBlobDetector_create(params)
 
-            while True:
-                cv2.imshow("Image", output)
-                if cv2.waitKey(10) == ord("q"):
-                    break
+    with torch.no_grad():
+        # Compute some segmentation metrics
+        metrics = Metrics(model, None, dataloader, DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
+        metrics.compute_confusion_matrix(mode="Validation")
+        avg_acc = metrics.get_avg_acc()
+        print(f"Average accuracy: {avg_acc}")
+
+        per_class_acc = metrics.get_class_accuracy()
+        per_class_acc_msg = ["\n" + label_map[key] + ": {acc}" for key, acc in enumerate(per_class_acc)]
+        print(f"Per Class Accuracy: {line for line in per_class_acc_msg}")
+
+        per_class_iou = metrics.get_class_iou()
+        per_class_iou_msg = ["\n" + label_map[key] + ": {iou}" for key, iou in enumerate(per_class_iou)]
+        print(f"Per Class Accuracy: {line for line in per_class_iou_msg}")
+
+        confusion_matrix = metrics.get_confusion_matrix()
+        while True:
+            cv2.imshow("Confusion Matrix", confusion_matrix)
+            if cv2.waitKey(10) == ord("q"):
+                break
+
+        # Redo a pass over the dataset to get more information if requested
+        if args.show_imgs or args.blob_detection:
+            for step, (inputs, labels) in enumerate(dataloader, start=1):
+                predictions = model(inputs)
+
+                if args.show_imgs:
+                    out_imgs = draw_segmentation(data, predictions, labels, color_map=DataConfig.COLOR_MAP)
+                    for out_img in out_imgs:
+                        while True:
+                            cv2.imshow("Image", out_img)
+                            if cv2.waitKey(10) == ord("q"):
+                                break
+                if args.blob_detection:
+                    one_hot_masks_preds = rearrange(predictions, "b c w h -> b w h c")
+                    masks_preds: np.ndarray = torch.argmax(one_hot_masks_preds, dim=-1).cpu().detach().numpy()
+                    one_hot_masks_labels = rearrange(labels, "b c w h -> b w h c")
+                    masks_labels: np.ndarray = torch.argmax(one_hot_masks_labels, dim=-1).cpu().detach().numpy()
+
+                    width, height, _ = one_hot_masks_preds[0].shape
+                    for img, pred_mask, label_mask in zip(inputs, masks_preds, masks_labels):
+                        # Recreate the segmentation mask from its one hot representation
+                        pred_mask_rgb = np.empty((width, height, 3), dtype=np.uint8)
+                        label_mask_rgb = np.empty((width, height, 3), dtype=np.uint8)
+                        # TODO: optimize this later
+                        for i in range(width):
+                            for j in range(height):
+                                pred_mask_rgb[i, j] = DataConfig.COLOR_MAP[pred_mask[i, j]]
+                                label_mask_rgb[i, j] = DataConfig.COLOR_MAP[label_mask[i, j]]
+
+                        # Run the blob detector on the image and store the results
+                        keypoints_pred = detector.detect(pred_mask_rgb)
+                        keypoints_label = detector.detect(label_mask_rgb)
+                        if len(keypoints_label) > 0:
+                            if len(keypoints_pred) > 0:
+                                true_negs += 1
+                            elif args.show_missed:
+                                img = rearrange(inputs, "c w h -> w h c").cpu().detach().numpy()
+                                img = np.asarray(img * 255.0, dtype=np.uint8)
+                                img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
+                                                                       (255, 0, 0),
+                                                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                                show_image(img_with_detection, "Sample with missed defect")
+                            neg_elts += 1
+                        else:
+                            if len(keypoints_pred) == 0:
+                                true_pos += 1
+                            elif args.show_missed:
+                                img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
+                                                                       (255, 0, 0),
+                                                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                                show_image(img_with_detection, "Clean sample misclassified")
+                            pos_elts += 1
+
+    if args.blob_detection:
+        precision = true_pos / (true_pos + (neg_elts-true_negs))
+        recall = true_pos / pos_elts
+        acc = (true_pos + true_negs) / (neg_elts + pos_elts)
+        pos_acc = true_pos / pos_elts
+        neg_acc = true_negs / neg_elts
+
+        stats = (precision, recall, acc, pos_acc, neg_acc)
+        stats_names = ("Precision", "Recall", "Accuracy", "Positive accuracy", "Negative accuracy")
+
+        print(f"Dataset was composed of {pos_elts} good samples and {neg_elts} bad samples")
+        print("\nResults obtained using blob detection for classification:")
+        for stat_idx in range(len(stats)):
+            print(f"{stats_names[stat_idx]}: {stats[stat_idx]}")
 
 
 if __name__ == "__main__":

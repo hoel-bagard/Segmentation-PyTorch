@@ -82,11 +82,16 @@ def grid_search(data_path: Path):
         stats.append((precision, recall, acc, pos_acc, neg_acc))
 
     stats = np.asarray(stats)
-    best_precision_idx = np.argsort(stats, axis=0)[:5]
+    stats_name = ("precision", "recall", "accuracy", "positive accuracy", "negative accuracy")
+    best_results_idx = []
+    for stat_idx in range(len(stats)):
+        best_results_idx.append(np.argsort(stats, axis=stat_idx)[:5])
 
     print("\nFinished runnig grid_search on the dataset")
     print(f"Dataset was composed of {pos_elts} good samples and {neg_elts} bad samples")
-    print(f"Best precision are:\n{stats[best_precision_idx]}\nObtained with:\n{mp_args[best_precision_idx][1:]}")
+    for stat_idx in range(len(stats)):
+        print(f"Best {stats_name} results are:\n{stats[best_results_idx[stat_idx]]}"
+              f"\nObtained with:\n{mp_args[best_results_idx[stat_idx]][1:]}")
 
 
 def show_image(img, title: str = "Image"):
