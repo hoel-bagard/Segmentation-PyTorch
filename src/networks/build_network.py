@@ -29,7 +29,7 @@ def build_model(model_type: type, output_classes: bool, model_path: Optional[str
     model = model_type(**kwargs)
 
     if model_path is not None:
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=device))
     if eval:
         model.eval()
 

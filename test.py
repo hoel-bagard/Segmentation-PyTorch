@@ -9,6 +9,7 @@ import torch
 from config.data_config import DataConfig
 from config.model_config import ModelConfig
 from src.networks.build_network import build_model
+from src.torch_utils.utils.misc import get_config_as_dict
 import src.dataset.data_transformations as transforms
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.dataset.defeault_loader import (
@@ -21,7 +22,9 @@ from src.torch_utils.utils.draw import draw_segmentation
 from src.torch_utils.utils.metrics import Metrics
 
 
-def show_image(img, title: str = "Image"):
+def show_image(img, title: str = "Image", already_rgb: bool = False):
+    if not already_rgb:
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     while True:
         cv2.imshow(title, img)
         key = cv2.waitKey(10)
@@ -40,7 +43,8 @@ def main():
     args = parser.parse_args()
 
     # Creates and load the model
-    model = build_model(ModelConfig.NETWORK, args.model_path, eval=True)
+    model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, model_path=args.model_path,
+                        eval_mode=True, **get_config_as_dict(ModelConfig))
     print("Weights loaded", flush=True)
 
     # Create dataloader
@@ -74,35 +78,29 @@ def main():
         metrics = Metrics(model, None, dataloader, DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
         metrics.compute_confusion_matrix(mode="Validation")
         avg_acc = metrics.get_avg_acc()
-        print(f"Average accuracy: {avg_acc}")
+        print(f"\nAverage accuracy: {avg_acc}")
 
         per_class_acc = metrics.get_class_accuracy()
-        per_class_acc_msg = ["\n" + label_map[key] + ": {acc}" for key, acc in enumerate(per_class_acc)]
-        print(f"Per Class Accuracy: {line for line in per_class_acc_msg}")
+        per_class_acc_msg = ["\n" + label_map[key] + f": {acc}" for key, acc in enumerate(per_class_acc)]
+        print("\nPer Class Accuracy:" + "".join(per_class_acc_msg))
 
         per_class_iou = metrics.get_class_iou()
-        per_class_iou_msg = ["\n" + label_map[key] + ": {iou}" for key, iou in enumerate(per_class_iou)]
-        print(f"Per Class Accuracy: {line for line in per_class_iou_msg}")
+        per_class_iou_msg = ["\n" + label_map[key] + f": {iou}" for key, iou in enumerate(per_class_iou)]
+        print("\nPer Class IOU:" + "".join(per_class_iou_msg))
 
         confusion_matrix = metrics.get_confusion_matrix()
-        while True:
-            cv2.imshow("Confusion Matrix", confusion_matrix)
-            if cv2.waitKey(10) == ord("q"):
-                break
+        show_image(confusion_matrix, "Confusion Matrix")
 
         # Redo a pass over the dataset to get more information if requested
-        if args.show_imgs or args.blob_detection:
+        if args.show_imgs or args.use_blob_detection:
             for step, (inputs, labels) in enumerate(dataloader, start=1):
                 predictions = model(inputs)
 
                 if args.show_imgs:
-                    out_imgs = draw_segmentation(data, predictions, labels, color_map=DataConfig.COLOR_MAP)
+                    out_imgs = draw_segmentation(inputs, predictions, labels, color_map=DataConfig.COLOR_MAP)
                     for out_img in out_imgs:
-                        while True:
-                            cv2.imshow("Image", out_img)
-                            if cv2.waitKey(10) == ord("q"):
-                                break
-                if args.blob_detection:
+                        show_image(out_img)
+                if args.use_blob_detection:
                     one_hot_masks_preds = rearrange(predictions, "b c w h -> b w h c")
                     masks_preds: np.ndarray = torch.argmax(one_hot_masks_preds, dim=-1).cpu().detach().numpy()
                     one_hot_masks_labels = rearrange(labels, "b c w h -> b w h c")
@@ -143,7 +141,7 @@ def main():
                                 show_image(img_with_detection, "Clean sample misclassified")
                             pos_elts += 1
 
-    if args.blob_detection:
+    if args.use_blob_detection:
         precision = true_pos / (true_pos + (neg_elts-true_negs))
         recall = true_pos / pos_elts
         acc = (true_pos + true_negs) / (neg_elts + pos_elts)
