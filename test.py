@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Optional
 
 import cv2
 from einops import rearrange
@@ -33,6 +34,47 @@ def show_image(img, title: str = "Image", already_rgb: bool = False):
             break
 
 
+def draw_blobs(img, mask_pred: np.ndarray, mask_label: np.ndarray, keypoints_pred,
+               color_map: dict[int, str], size: Optional[tuple[int, int]] = None) -> np.ndarray:
+    """
+    Place the segmentation masks next to the original image.
+    Also puts the predicted blobs on the original image.
+    Args:
+        img: Original image
+        mask_pred: RGB segmentation map predicted by the network
+        mask_label: RGB label segmentation mask
+        keypoints_pred: Blobs from the opencv blob detector
+        color_map: Dictionary linking class index to its color
+        size: If given, the images will be resized to this size
+    Returns: RGB segmentation masks and original image (in one image)
+    """
+    img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
+    img = np.asarray(img * 255.0, dtype=np.uint8)
+    width, height, _ = img.shape
+
+    # Create a blank image with some text to explain what things are
+    text_img = np.full((width, height, 3), 255,  dtype=np.uint8)
+    text_img = cv2.putText(text_img, "Top left: input image.", (20, 20),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Top right: label mask", (20, 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Bottom left: predicted mask", (20, 60),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
+
+    img_with_detections = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
+                                            (255, 0, 0),
+                                            cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    out_img_top = cv2.hconcat((img_with_detections, mask_label))
+    out_img_bot = cv2.hconcat((mask_pred, text_img))
+    out_img = cv2.vconcat((out_img_top, out_img_bot))
+
+    if size:
+        out_img = cv2.resize(out_img, size, interpolation=cv2.INTER_AREA)
+
+    return out_img
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument("model_path", type=Path, help="Path to the checkpoint to use")
@@ -51,6 +93,7 @@ def main():
 
     # Create dataloader
     label_map = DataConfig.LABEL_MAP
+    color_map = DataConfig.COLOR_MAP
     batch_size = 1
     base_gpu_pipeline = (transforms.to_tensor(), transforms.normalize(labels_too=True))
     data, labels = default_loader(args.data_path, get_mask_path_fn=get_mask_path)
@@ -122,8 +165,8 @@ def main():
                         # TODO: optimize this later
                         for i in range(width):
                             for j in range(height):
-                                pred_mask_rgb[i, j] = DataConfig.COLOR_MAP[pred_mask[i, j]]
-                                label_mask_rgb[i, j] = DataConfig.COLOR_MAP[label_mask[i, j]]
+                                pred_mask_rgb[i, j] = color_map[pred_mask[i, j]]
+                                label_mask_rgb[i, j] = color_map[label_mask[i, j]]
 
                         # Run the blob detector on the image and store the results
                         keypoints_pred = detector.detect(pred_mask_rgb)
@@ -132,23 +175,15 @@ def main():
                             if len(keypoints_pred) > 0:
                                 true_negs += 1
                             elif args.show_missed:
-                                img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
-                                img = np.asarray(img * 255.0, dtype=np.uint8)
-                                img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
-                                                                       (255, 0, 0),
-                                                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                                show_image(img_with_detection, "Sample with missed defect")
+                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                                show_image(out_img, "Sample with missed defect")
                             neg_elts += 1
                         else:
                             if len(keypoints_pred) == 0:
                                 true_pos += 1
                             elif args.show_missed:
-                                img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
-                                img = np.asarray(img * 255.0, dtype=np.uint8)
-                                img_with_detection = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
-                                                                       (255, 0, 0),
-                                                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                                show_image(img_with_detection, "Clean sample misclassified")
+                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                                show_image(out_img, "Clean sample misclassified")
                             pos_elts += 1
 
     if args.use_blob_detection:
