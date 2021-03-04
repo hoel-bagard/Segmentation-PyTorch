@@ -13,20 +13,20 @@ class CE_Loss(nn.Module):
 
     def forward(self, input_data: torch.Tensor, input_labels: torch.Tensor) -> torch.Tensor:
 
-        loss = self.mse_loss(input_data, input_labels.float())
+        # loss = self.mse_loss(input_data, input_labels.float())
         # loss = ((input_data-input_labels)**2).mean()
 
         # TODO: Try this later (once everything else works)
-        # y_pred = torch.flatten(input_labels, start_dim=1)
-        # y_true = torch.flatten(input_data, start_dim=1)
+        y_pred = torch.flatten(input_labels, start_dim=1)
+        y_true = torch.flatten(input_data, start_dim=1)
 
-        # neg_loss = y_true * (-torch.log(y_pred + 1e-8))
-        # pos_loss = (1 - y_true) * (-torch.log(1 - y_pred + 1e-8))
+        neg_loss = y_true * (-torch.log(y_pred + 1e-8))
+        pos_loss = (1 - y_true) * (-torch.log(1 - y_pred + 1e-8))
 
-        # # I prefer to avoid using reduce_mean directly because of all the zeros
-        # neg_loss = torch.sum(neg_loss) / torch.max(torch.tensor(1.0, device=self.device), torch.sum(y_true))
-        # pos_loss = torch.sum(pos_loss) / torch.max(torch.tensor(1.0, device=self.device), torch.sum(1 - y_true))
+        # I prefer to avoid using reduce_mean directly because of all the zeros
+        neg_loss = torch.sum(neg_loss) / torch.max(torch.tensor(1.0, device=self.device), torch.sum(y_true))
+        pos_loss = torch.sum(pos_loss) / torch.max(torch.tensor(1.0, device=self.device), torch.sum(1 - y_true))
 
-        # loss = pos_loss + self.negative_loss_factor*neg_loss
+        loss = pos_loss + self.negative_loss_factor*neg_loss
 
         return loss

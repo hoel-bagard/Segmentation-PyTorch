@@ -18,13 +18,13 @@ from src.torch_utils.utils.ressource_usage import resource_usage
 
 def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: BatchGenerator):
     """
-    Creates model corresponding to the given name.
+    Trains and validate the given model using the datasets.
     Args:
         model: Model to train
         train_dataloader: BatchGenerator of training data
         val_dataloader: BatchGenerator of validation data
     """
-    loss_fn = CE_Loss()
+    loss_fn = CE_Loss(negative_loss_factor=1)
     optimizer = torch.optim.Adam(model.parameters(), lr=ModelConfig.LR, weight_decay=ModelConfig.REG_FACTOR)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
