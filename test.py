@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from os import cpu_count
+from json import load
 from typing import Optional
 
 import cv2
@@ -7,7 +9,6 @@ from einops import rearrange
 import numpy as np
 import torch
 
-from config.data_config import DataConfig  # TODO: do not use the DataConfig here
 from config.model_config import ModelConfig
 from src.networks.build_network import build_model
 from src.torch_utils.utils.misc import get_config_as_dict
@@ -79,6 +80,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("model_path", type=Path, help="Path to the checkpoint to use")
     parser.add_argument("data_path", type=Path, help="Path to the test dataset")
+    parser.add_argument("classes_json_path", "--cjp", type=Path, help="Path to the classes.json file")
     parser.add_argument("--show_imgs", "--s", action="store_true", help="Show predicted segmentation masks")
     parser.add_argument("--use_blob_detection", "--b", action="store_true",
                         help="Use blob detection on predicted masks to get a binary classification")
@@ -86,21 +88,30 @@ def main():
                         help="Show samples where the blob detection failed")
     args = parser.parse_args()
 
-    # Creates and load the model
-    model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, model_path=args.model_path,
-                        eval_mode=True, **get_config_as_dict(ModelConfig))
-    print("Weights loaded", flush=True)
-
     # Create dataloader
-    label_map = DataConfig.LABEL_MAP
-    color_map = DataConfig.COLOR_MAP
+    classes_json_path: Path = args.classes_json_path if args.classes_json_path else args.data_path / "classes.jsob"
+    assert classes_json_path.exists(), "\nCould not find the classes.json file"
+    label_map = {}   # Maps an int to a class name
+    color_map = {}   # Maps an int to a color (corresponding to a class)
+    with open(classes_json_path) as json_file:
+        data = load(json_file)
+        for key, entry in enumerate(data):
+            label_map[key] = entry["name"]
+            color_map[key] = entry["color"]
+
     batch_size = 1
     base_gpu_pipeline = (transforms.to_tensor(), transforms.normalize(labels_too=True))
     data, labels = default_loader(args.data_path, get_mask_path_fn=get_mask_path)
-    dataloader = BatchGenerator(data, labels, batch_size, nb_workers=DataConfig.NB_WORKERS,
+    dataloader = BatchGenerator(data, labels, batch_size, nb_workers=int(cpu_count() * 0.8),
                                 data_preprocessing_fn=default_load_data,
                                 labels_preprocessing_fn=default_load_labels,
                                 gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline))
+    print("Dataloader created", flush=True)
+
+    # Creates and load the model
+    model = build_model(ModelConfig.MODEL, len(label_map), model_path=args.model_path,
+                        eval_mode=True, **get_config_as_dict(ModelConfig))
+    print("Weights loaded", flush=True)
 
     if args.use_blob_detection:
         # Variables used to keep track of the classification results
@@ -126,7 +137,7 @@ def main():
 
     with torch.no_grad():
         # Compute some segmentation metrics
-        metrics = Metrics(model, None, dataloader, DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
+        metrics = Metrics(model, None, dataloader, label_map, max_batches=None, segmentation=True)
         metrics.compute_confusion_matrix(mode="Validation")
         avg_acc = metrics.get_avg_acc()
         print(f"\nAverage accuracy: {avg_acc}")
@@ -148,7 +159,7 @@ def main():
                 predictions = model(inputs)
 
                 if args.show_imgs:
-                    out_imgs = draw_segmentation(inputs, predictions, labels, color_map=DataConfig.COLOR_MAP)
+                    out_imgs = draw_segmentation(inputs, predictions, labels, color_map=color_map)
                     for out_img in out_imgs:
                         show_image(out_img)
                 if args.use_blob_detection:
