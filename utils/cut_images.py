@@ -9,8 +9,8 @@ def main():
     parser = argparse.ArgumentParser("Cuts images and corresponding masks into small tiles")
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("output_path", type=Path, help="Output path")
-    parser.add_argument("--tile_size", nargs=2, default=[256, 256], type=int, help="Size of the tiles (w, h)")
-    parser.add_argument("--stride", nargs=2, default=[100, 100], type=int, help="Strides (w, h)")
+    parser.add_argument("--tile_size", "--ts", nargs=2, default=[256, 256], type=int, help="Size of the tiles (w, h)")
+    parser.add_argument("--stride", "--s", nargs=2, default=[100, 100], type=int, help="Strides (w, h)")
     args = parser.parse_args()
 
     data_path: Path = args.data_path
