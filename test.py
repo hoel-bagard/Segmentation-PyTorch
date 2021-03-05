@@ -7,7 +7,7 @@ from einops import rearrange
 import numpy as np
 import torch
 
-from config.data_config import DataConfig
+from config.data_config import DataConfig  # TODO: do not use the DataConfig here
 from config.model_config import ModelConfig
 from src.networks.build_network import build_model
 from src.torch_utils.utils.misc import get_config_as_dict
