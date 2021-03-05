@@ -24,8 +24,8 @@ from src.torch_utils.utils.draw import draw_segmentation
 from src.torch_utils.utils.metrics import Metrics
 
 
-def show_image(img, title: str = "Image", already_rgb: bool = False):
-    if not already_rgb:
+def show_image(img, title: str = "Image", already_bgr: bool = False):
+    if not already_bgr:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     while True:
         cv2.imshow(title, img)
@@ -36,7 +36,7 @@ def show_image(img, title: str = "Image", already_rgb: bool = False):
 
 
 def draw_blobs(img, mask_pred: np.ndarray, mask_label: np.ndarray, keypoints_pred,
-               color_map: dict[int, str], size: Optional[tuple[int, int]] = None) -> np.ndarray:
+               size: Optional[tuple[int, int]] = None) -> np.ndarray:
     """
     Place the segmentation masks next to the original image.
     Also puts the predicted blobs on the original image.
@@ -45,7 +45,6 @@ def draw_blobs(img, mask_pred: np.ndarray, mask_label: np.ndarray, keypoints_pre
         mask_pred: RGB segmentation map predicted by the network
         mask_label: RGB label segmentation mask
         keypoints_pred: Blobs from the opencv blob detector
-        color_map: Dictionary linking class index to its color
         size: If given, the images will be resized to this size
     Returns: RGB segmentation masks and original image (in one image)
     """
@@ -80,7 +79,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("model_path", type=Path, help="Path to the checkpoint to use")
     parser.add_argument("data_path", type=Path, help="Path to the test dataset")
-    parser.add_argument("classes_json_path", "--cjp", type=Path, help="Path to the classes.json file")
+    parser.add_argument("--json_path", "--j", type=Path, help="Path to the classes.json file")
     parser.add_argument("--show_imgs", "--s", action="store_true", help="Show predicted segmentation masks")
     parser.add_argument("--use_blob_detection", "--b", action="store_true",
                         help="Use blob detection on predicted masks to get a binary classification")
@@ -89,15 +88,16 @@ def main():
     args = parser.parse_args()
 
     # Create dataloader
-    classes_json_path: Path = args.classes_json_path if args.classes_json_path else args.data_path / "classes.jsob"
+    classes_json_path: Path = args.json_path if args.json_path else args.data_path.parent / "classes.json"
     assert classes_json_path.exists(), "\nCould not find the classes.json file"
     label_map = {}   # Maps an int to a class name
-    color_map = {}   # Maps an int to a color (corresponding to a class)
+    color_map = []   # Maps an int to a color (corresponding to a class)
     with open(classes_json_path) as json_file:
         data = load(json_file)
         for key, entry in enumerate(data):
             label_map[key] = entry["name"]
-            color_map[key] = entry["color"]
+            color_map.append(entry["color"])
+    color_map = np.asarray(color_map)
 
     batch_size = 1
     base_gpu_pipeline = (transforms.to_tensor(), transforms.normalize(labels_too=True))
@@ -106,7 +106,7 @@ def main():
                                 data_preprocessing_fn=default_load_data,
                                 labels_preprocessing_fn=default_load_labels,
                                 gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline))
-    print("Dataloader created", flush=True)
+    print("\nDataloader created", flush=True)
 
     # Creates and load the model
     model = build_model(ModelConfig.MODEL, len(label_map), model_path=args.model_path,
@@ -158,10 +158,6 @@ def main():
             for step, (inputs, labels) in enumerate(dataloader, start=1):
                 predictions = model(inputs)
 
-                if args.show_imgs:
-                    out_imgs = draw_segmentation(inputs, predictions, labels, color_map=color_map)
-                    for out_img in out_imgs:
-                        show_image(out_img)
                 if args.use_blob_detection:
                     one_hot_masks_preds = rearrange(predictions, "b c w h -> b w h c")
                     masks_preds: np.ndarray = torch.argmax(one_hot_masks_preds, dim=-1).cpu().detach().numpy()
@@ -171,13 +167,8 @@ def main():
                     width, height, _ = one_hot_masks_preds[0].shape
                     for img, pred_mask, label_mask in zip(inputs, masks_preds, masks_labels):
                         # Recreate the segmentation mask from its one hot representation
-                        pred_mask_rgb = np.empty((width, height, 3), dtype=np.uint8)
-                        label_mask_rgb = np.empty((width, height, 3), dtype=np.uint8)
-                        # TODO: optimize this later
-                        for i in range(width):
-                            for j in range(height):
-                                pred_mask_rgb[i, j] = color_map[pred_mask[i, j]]
-                                label_mask_rgb[i, j] = color_map[label_mask[i, j]]
+                        pred_mask_rgb = np.asarray(color_map[pred_mask], dtype=np.uint8)
+                        label_mask_rgb = np.asarray(color_map[label_mask], dtype=np.uint8)
 
                         # Run the blob detector on the image and store the results
                         keypoints_pred = detector.detect(pred_mask_rgb)
@@ -196,9 +187,16 @@ def main():
                                 out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
                                 show_image(out_img, "Clean sample misclassified")
                             pos_elts += 1
+                        if args.show_imgs:
+                            out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                            show_image(out_img, "Output image")
+                elif args.show_imgs:
+                    out_imgs = draw_segmentation(inputs, predictions, labels, color_map=color_map)
+                    for out_img in out_imgs:
+                        show_image(out_img)
 
     if args.use_blob_detection:
-        precision = true_pos / (true_pos + (neg_elts-true_negs))
+        precision = true_pos / max(1, (true_pos + (neg_elts-true_negs)))
         recall = true_pos / max(1, pos_elts)
         acc = (true_pos + true_negs) / (neg_elts + pos_elts)
         pos_acc = true_pos / max(1, pos_elts)
