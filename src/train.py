@@ -90,6 +90,8 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
     try:
         train_stop_time = time.time()
+        train_dataloader.release()
+        val_dataloader.release()
         tensorboard.close_writers()
         memory_peak, gpu_memory = resource_usage()
         print("Finished Training"
