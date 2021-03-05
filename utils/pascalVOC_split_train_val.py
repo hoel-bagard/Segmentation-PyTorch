@@ -30,11 +30,11 @@ def main():
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:
-            # TODO: use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
+            # Should use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
             if image_subpath.split(os.path.sep)[-1] in filename:
                 image_path = filename
 
-        # TODO: this looks really dirty, make it better
+        # This looks really dirty, make it better if possible
         label_subpath, image_subpath = [], []
         found = False
         for path_part in image_path.split(os.path.sep):

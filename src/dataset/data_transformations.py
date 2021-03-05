@@ -8,9 +8,6 @@ import numpy as np
 import torch
 
 
-# TODO: Use functools instead ?
-# https://docs.python.org/3/howto/functional.html#the-functools-module
-# https://docs.python.org/3/library/functools.html#functools.reduce
 def compose_transformations(transformations: list[Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]]):
     """ Returns a function that applies all the given transformations"""
     def compose_transformations_fn(imgs: list[np.ndarray], labels: list[np.ndarray]):
@@ -19,6 +16,14 @@ def compose_transformations(transformations: list[Callable[[np.ndarray, np.ndarr
             imgs, labels = fn(imgs, labels)
         return imgs, labels
     return compose_transformations_fn
+
+
+def crop(top: int, bottom: int, left: int, right: int):
+    def crop_fn(imgs: np.ndarray, labels: np.ndarray):
+        imgs = imgs[:, top:-bottom, left:-right]
+        labels = labels[:, top:-bottom, left:-right]
+        return imgs, labels
+    return crop_fn
 
 
 def random_crop(reduction_factor: int = 0.9):
@@ -61,7 +66,7 @@ def rotate180(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndar
 
 
 def to_tensor():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # TODO: remove the hardcoded 0 ?
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def to_tensor_fn(imgs: np.ndarray, labels: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         """Convert ndarrays in sample to Tensors."""
@@ -83,7 +88,7 @@ def normalize(labels_too: bool = True):
 
 
 def noise():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # TODO: remove the hardcoded 0 ?
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def noise_fn(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """ Add random noise to the image """

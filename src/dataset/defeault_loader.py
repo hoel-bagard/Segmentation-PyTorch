@@ -54,27 +54,24 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
-                      top: int = 0, bottom: int = 1, left: int = 0, right: int = 1) -> np.ndarray:
+def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, int]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
+        size: size to which resize the images
     Returns:
         Image or batch of image
     """
     if isinstance(data, Path):
         img = cv2.imread(str(data))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # TODO: Move resize and crop to the pipeline
-        # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
-        # (I miss TF2 =(  )
-        # # Resize the image in a sample to a given size.
-        # if ModelConfig.IMAGE_SIZES:
-        #     img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
-        # # Crop the image
-        # if crop:
-        #     img[top:-bottom, left:-right]
+        # Resize is in the data loading function because it needs to be done
+        # before transforming the segmentation map into a one hot.
+        if size:
+            # https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
+            img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+
         return img
     else:
         imgs = []
@@ -83,18 +80,20 @@ def default_load_data(data: Union[Path, list[Path]], crop: bool = False,
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False,
-                        top: int = 0, bottom: int = 1, left: int = 0, right: int = 1) -> np.ndarray:
+def default_load_labels(label_paths: Union[Path, list[Path]], size: Optional[tuple[int, int]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
+        size: size to which resize the images
     Returns:
         Segmentation mask or batch of segmentation masks
     """
     if isinstance(label_paths, Path):
         img = cv2.imread(str(label_paths))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if size:
+            img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
 
         # Transform the mask into a one hot mask
         width, height, _ = img.shape
@@ -102,16 +101,9 @@ def default_load_labels(label_paths: Union[Path, list[Path]], crop: bool = False
         for key in range(len(DataConfig.COLOR_MAP)):
             one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
 
-        # TODO: have an assert to check that each "pixel" has a value?
+        # Assert to check that each pixel of the segmentation mask has a class. Not used for performance.
+        # assert np.sum(one_hot_mask) == width * height, f"At least one pixel has no class in image {str(label_paths)}"
 
-        # TODO: use https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
-        # (I miss TF2 =(  )
-        # Resize the image in a sample to a given size.
-        # if ModelConfig.IMAGE_SIZES:
-        #     img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
-        # Crop the image
-        # if crop:
-        #     img[top:-bottom, left:-right]
         return one_hot_mask
     else:
         img_masks = np.asarray([default_load_labels(image_path) for image_path in label_paths])

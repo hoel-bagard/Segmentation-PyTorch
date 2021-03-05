@@ -37,7 +37,7 @@ def main():
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:
-            # TODO: use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
+            # Should use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
             if image_subpath.split(os.path.sep)[-1] in filename:
                 image_path = filename
 
@@ -108,7 +108,7 @@ def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
 
 
 def draw_segmentation_map(labels: np.ndarray, shape: Tuple[int, int]):
-    # TODO: this assumes RGB
+    # Image should be RGB
     seg_map = np.full((*shape[::-1], 3), [255, 255, 255])
 
     for label in labels:

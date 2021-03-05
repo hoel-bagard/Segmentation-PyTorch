@@ -35,7 +35,7 @@ def load_voc_seg(data_path: str, label_map: Dict,
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:
-            # TODO: use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
+            # Should use the full subpath to avoid duplicates  (Seems like there is an issue with Japanese characters)
             if image_subpath.split(os.path.sep)[-1] in filename:
                 image_path = filename
 
@@ -63,7 +63,7 @@ def prepare_data(image_path: str, label_path: str, label_map: Dict) -> Tuple[np.
     Return:
         Image and associated segmentation map
     """
-    # TODO: Put the resize in a nn.Module / Transform.
+    # Do the resize in a nn.Module / Transform.
     # Load and resize image
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

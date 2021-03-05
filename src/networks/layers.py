@@ -7,7 +7,7 @@ class DarknetConv(torch.nn.Module):
     def __init__(self, in_filters, out_filters, size, stride=1):
         super(DarknetConv, self).__init__()
 
-        # TODO: this is a quick fix, need to work on padding in PyTorch
+        # This is a quick fix, need to work on padding in PyTorch
         padding = (size - 1) // 2
 
         self.conv = nn.Conv2d(in_filters, out_filters, kernel_size=size,
