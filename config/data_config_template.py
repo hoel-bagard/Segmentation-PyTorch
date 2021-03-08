@@ -1,6 +1,8 @@
 from pathlib import Path
 from json import load
 
+import numpy as np
+
 
 class DataConfig:
     # Recording part
@@ -20,10 +22,11 @@ class DataConfig:
 
     # Build a map between id and names
     LABEL_MAP = {}   # Maps an int to a class name
-    COLOR_MAP = {}   # Maps an int to a color (corresponding to a class)
+    COLOR_MAP = []   # Maps an int to a color (corresponding to a class)
     with open(DATA_PATH / "classes.json") as json_file:
         data = load(json_file)
         for key, entry in enumerate(data):
             LABEL_MAP[key] = entry["name"]
-            COLOR_MAP[key] = entry["color"]
+            COLOR_MAP.append(entry["color"])
+    COLOR_MAP = np.asarray(COLOR_MAP)
     OUTPUT_CLASSES = len(LABEL_MAP)

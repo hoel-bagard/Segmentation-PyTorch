@@ -54,7 +54,7 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, int]]) -> np.ndarray:
+def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, int]] = None) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
@@ -80,7 +80,7 @@ def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, i
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]], size: Optional[tuple[int, int]]) -> np.ndarray:
+def default_load_labels(label_paths: Union[Path, list[Path]], size: Optional[tuple[int, int]] = None) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
