@@ -1,5 +1,4 @@
 from pathlib import Path
-from itertools import product
 from typing import (
     Callable,
     Union,
@@ -9,7 +8,6 @@ from typing import (
 import cv2
 import numpy as np
 
-from config.model_config import ModelConfig
 from config.data_config import DataConfig
 from src.torch_utils.utils.misc import clean_print
 
@@ -69,7 +67,6 @@ def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, i
         # Resize is in the data loading function because it needs to be done
         # before transforming the segmentation map into a one hot.
         if size:
-            # https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html to do the resize on GPU ?
             img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
 
         return img

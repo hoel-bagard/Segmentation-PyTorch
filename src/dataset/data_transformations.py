@@ -26,7 +26,7 @@ def crop(top: int, bottom: int, left: int, right: int):
     return crop_fn
 
 
-def random_crop(reduction_factor: int = 0.9):
+def random_crop(reduction_factor: float = 0.9):
     """ Randomly crops image """
     def random_crop_fn(imgs: np.ndarray, labels: np.ndarray):
         """ Randomly crops a batch of data (the "same" patch is taken across all images) """
@@ -85,6 +85,28 @@ def normalize(labels_too: bool = True):
     def normalize_fn(imgs: torch.Tensor, labels: torch.Tensor):
         return imgs/255.0, labels/255.0 if labels_too else labels
     return normalize_fn
+
+
+def random_zoom(zoom_factor: float = 1.05):
+    zoom_factor = 1 / zoom_factor
+    """ Randomly zoom on an image """
+    def random_zoom_fn(imgs: torch.Tensor, labels: torch.Tensor):
+        """ Randomly zoom on a batch of data (the "same" patch is taken across all images) """
+        print("\nDo not use the random zoom")
+        exit()
+        _, _, height, width = imgs.shape  # Assume that labels and images have the same size
+        h = random.randint(0, int(height*(1-zoom_factor))-1)
+        w = random.randint(0, int(width*(1-zoom_factor))-1)
+        cropped_imgs = imgs[:, :, h:h+int(height*zoom_factor), w:w+int(width*zoom_factor)]
+        cropped_labels = labels[:, :, h:h+int(height*zoom_factor), w:w+int(width*zoom_factor)]
+
+        # from the torch documentation for interpolate:
+        # "This operation may produce nondeterministic gradients when given tensors on a CUDA device."
+        zoomed_imgs = torch.nn.functional.interpolate(cropped_imgs, (height, width))
+        # Labels are one hots, this doesn't make sense.
+        zoomed_labels = torch.nn.functional.interpolate(cropped_labels, (height, width))
+        return zoomed_imgs, zoomed_labels
+    return random_zoom_fn
 
 
 def noise():

@@ -67,7 +67,6 @@ def main():
                                               labels_preprocessing_fn=default_load_labels if args.load_data else None)
 
     augmentation_pipeline = transforms.compose_transformations((
-        # transforms.random_crop(0.98),  # TODO: Need to resize after (or do something to make val the same size)
         transforms.vertical_flip,
         transforms.horizontal_flip,
         transforms.rotate180,
@@ -82,7 +81,8 @@ def main():
         transforms.noise()
     ))
 
-    train_dataloader = BatchGenerator(train_data, train_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
+    train_dataloader = BatchGenerator(train_data, train_labels,
+                                      ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                                       data_preprocessing_fn=default_load_data if not args.load_data else None,
                                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                                       aug_pipeline=augmentation_pipeline,
