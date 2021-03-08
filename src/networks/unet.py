@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import (
     Optional,
     Callable,
@@ -66,3 +67,23 @@ class UDarkNet(nn.Module):
         x = self.last_conv(x)
         x = torch.sigmoid(x)
         return x
+
+    def get_weight_and_grads(self):
+        weight_grads = OrderedDict()
+
+        for index, block in enumerate(self.conv):
+            weight_grads[f"block_{index}_conv"] = block.dark_conv.conv.weight, block.dark_conv.conv.weight.grad
+            for j, dark_res_block in enumerate(block.dark_res_blocks):
+                weight_grads[f"block_{index}_subblock_{j}_conv1"] = (dark_res_block.darknet_conv1.conv.weight,
+                                                                     dark_res_block.darknet_conv1.conv.weight.grad)
+                weight_grads[f"block_{index}_subblock_{j}_conv2"] = (dark_res_block.darknet_conv2.conv.weight,
+                                                                     dark_res_block.darknet_conv2.conv.weight.grad)
+
+        for index in range(len(self.channels)-2, -1, -1):
+            weight_grads[f"deconv_{index}"] = (self.conv_trans[index].conv_transpose.weight,
+                                               self.conv_trans[index].conv_transpose.weight.grad)
+            weight_grads[f"skip_{index}"] = (self.skip_connections[index].conv.weight,
+                                             self.skip_connections[index].conv.weight.grad)
+
+        weight_grads["last_conv"] = self.last_conv.weight, self.last_conv.weight.grad
+        return weight_grads

@@ -67,8 +67,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
                     if DataConfig.USE_TB:
                         print("\nStarting to compute TensorBoard metrics", end="\r", flush=True)
-                        # # TODO: Uncomment line bellow and see if it works properly
-                        # # tensorboard.write_weights_grad(epoch)
+                        tensorboard.write_weights_grad(epoch)
                         tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
 
                         # Metrics for the Train dataset
