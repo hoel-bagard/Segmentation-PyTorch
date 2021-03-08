@@ -69,7 +69,7 @@ def draw_blobs(img, mask_pred: np.ndarray, mask_label: np.ndarray, keypoints_pre
     out_img_bot = cv2.hconcat((mask_pred, text_img))
     out_img = cv2.vconcat((out_img_top, out_img_bot))
 
-    if size:
+    if size is not None:
         out_img = cv2.resize(out_img, size, interpolation=cv2.INTER_AREA)
 
     return out_img
@@ -123,17 +123,16 @@ def main():
         # Setup SimpleBlobDetector parameters.
         params = cv2.SimpleBlobDetector_Params()
         params.filterByArea = True
-        params.minArea = 50
-        params.maxArea = 50000
-        params.minThreshold = 5
-        params.maxThreshold = 250
-
+        params.minArea = 10
+        params.maxArea = 5000
+        params.minThreshold = 0
+        params.maxThreshold = 255
         params.filterByCircularity = False
         params.filterByColor = False
         params.filterByConvexity = False
         params.filterByInertia = False
 
-        detector = cv2.SimpleBlobDetector_create(params)
+        detector: cv2.SimpleBlobDetector = cv2.SimpleBlobDetector_create(params)
 
     with torch.no_grad():
         # Compute some segmentation metrics
@@ -177,18 +176,18 @@ def main():
                             if len(keypoints_pred) > 0:
                                 true_negs += 1
                             elif args.show_missed:
-                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred)
                                 show_image(out_img, "Sample with missed defect")
                             neg_elts += 1
                         else:
                             if len(keypoints_pred) == 0:
                                 true_pos += 1
                             elif args.show_missed:
-                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                                out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred)
                                 show_image(out_img, "Clean sample misclassified")
                             pos_elts += 1
                         if args.show_imgs:
-                            out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred, color_map)
+                            out_img = draw_blobs(img, pred_mask_rgb, label_mask_rgb, keypoints_pred)
                             show_image(out_img, "Output image")
                 elif args.show_imgs:
                     out_imgs = draw_segmentation(inputs, predictions, labels, color_map=color_map)
