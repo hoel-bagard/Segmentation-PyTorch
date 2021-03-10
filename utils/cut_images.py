@@ -37,12 +37,8 @@ def main():
             f"\nShape of the image and the mask do not match for image {file_path}")
 
         tile_index = 0
-        for x in range(0, width, tile_width):
-            for y in range(0, height, tile_height):
-                if y+tile_height > height:
-                    y = height - tile_height
-                if x+tile_width > width:
-                    x = width - tile_width
+        for x in range(0, width-tile_width, stride_width):
+            for y in range(0, height-tile_height, stride_height):
                 tile = img[y:y+tile_height, x:x+tile_width]
                 tile_mask = img_mask[y:y+tile_height, x:x+tile_width]
 
