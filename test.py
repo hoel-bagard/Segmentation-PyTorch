@@ -149,8 +149,9 @@ def main():
         per_class_iou_msg = ["\n" + label_map[key] + f": {iou}" for key, iou in enumerate(per_class_iou)]
         print("\nPer Class IOU:" + "".join(per_class_iou_msg))
 
-        confusion_matrix = metrics.get_confusion_matrix()
-        show_image(confusion_matrix, "Confusion Matrix")
+        if args.show_imgs:
+            confusion_matrix = metrics.get_confusion_matrix()
+            show_image(confusion_matrix, "Confusion Matrix")
 
         # Redo a pass over the dataset to get more information if requested
         if args.show_imgs or args.use_blob_detection:
@@ -206,8 +207,9 @@ def main():
 
         print(f"Dataset was composed of {pos_elts} good samples and {neg_elts} bad samples")
         print("\nResults obtained using blob detection for classification:")
+        print(f"Bad samples misclassified: {neg_elts-true_negs}, Good samples misclassified: {pos_elts-true_pos}")
         for stat_idx in range(len(stats)):
-            print(f"{stats_names[stat_idx]}: {stats[stat_idx]}")
+            print(f"{stats_names[stat_idx]}: {stats[stat_idx]:.2f}")
 
 
 if __name__ == "__main__":

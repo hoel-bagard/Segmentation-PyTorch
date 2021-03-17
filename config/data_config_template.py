@@ -1,5 +1,6 @@
 from pathlib import Path
 from json import load
+import os
 
 import numpy as np
 
@@ -18,7 +19,7 @@ class DataConfig:
     RECORD_START       = 10                  # Checkpoints and TensorBoard are not recorded before this epoch
 
     # Dataloading
-    NB_WORKERS = 8  # Number of workers to use for dataloading
+    NB_WORKERS = int(os.cpu_count() * 0.8)  # Number of workers to use for dataloading
 
     # Build a map between id and names
     LABEL_MAP = {}   # Maps an int to a class name
