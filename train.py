@@ -61,11 +61,7 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path,
-                                              limit=args.limit, load_data=args.load_data,
-                                              data_preprocessing_fn=default_load_data if args.load_data else None,
-                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
-
+    # Data augmentation done on cpu.
     augmentation_pipeline = transforms.compose_transformations((
         transforms.vertical_flip,
         transforms.horizontal_flip,
@@ -81,35 +77,39 @@ def main():
         transforms.noise()
     ))
 
+    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path,
+                                              limit=args.limit, load_data=args.load_data,
+                                              data_preprocessing_fn=default_load_data if args.load_data else None,
+                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    clean_print("Train data loaded")
+
+    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path,
+                                          limit=args.limit, load_data=args.load_data,
+                                          data_preprocessing_fn=default_load_data if args.load_data else None,
+                                          labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    clean_print("Validation data loaded")
+
     with BatchGenerator(train_data, train_labels,
                         ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                         data_preprocessing_fn=default_load_data if not args.load_data else None,
                         labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                         aug_pipeline=augmentation_pipeline,
                         gpu_augmentation_pipeline=train_gpu_augmentation_pipeline,
-                        shuffle=True) as train_dataloader:
-        clean_print("Train data loaded")
+                        shuffle=True) as train_dataloader, \
+        BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
+                       data_preprocessing_fn=default_load_data if not args.load_data else None,
+                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                       gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),
+                       shuffle=False) as val_dataloader:
 
-        val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path,
-                                              limit=args.limit, load_data=args.load_data,
-                                              data_preprocessing_fn=default_load_data if args.load_data else None,
-                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
+        print(f"\nLoaded {len(train_dataloader)} train data and",
+              f"{len(val_dataloader)} validation data", flush=True)
 
-        with BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
-                            data_preprocessing_fn=default_load_data if not args.load_data else None,
-                            labels_preprocessing_fn=default_load_labels if not args.load_data else None,
-                            gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),
-                            shuffle=False) as val_dataloader:
-            clean_print("Validation data loaded")
+        print("Building model. . .", end="\r")
+        model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, **get_config_as_dict(ModelConfig))
+        summary(model, train_dataloader.data_shape)
 
-            print(f"\nLoaded {len(train_dataloader)} train data and",
-                  f"{len(val_dataloader)} validation data", flush=True)
-
-            print("Building model. . .", end="\r")
-            model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, **get_config_as_dict(ModelConfig))
-            summary(model, (3, ModelConfig.IMAGE_SIZES[0], ModelConfig.IMAGE_SIZES[1]))
-
-            train(model, train_dataloader, val_dataloader)
+        train(model, train_dataloader, val_dataloader)
 
 
 if __name__ == "__main__":
