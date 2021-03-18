@@ -1,6 +1,5 @@
-from typing import (
-    Optional,
-)
+from typing import Optional
+from pathlib import Path
 
 import torch
 
@@ -13,15 +12,15 @@ class ModelHelper:
 
 def build_model(model_type: type, output_classes: bool, model_path: Optional[str] = None,
                 eval_mode: bool = False, **kwargs):
-    """
-    Creates model corresponding to the given name.
+    """ Function that instanciates the given model.
+
     Args:
-        name: Name of the model to create, must be one of the implemented models
-        output_classes: Number of classes in the dataset
-        model_path: If given, then the weights will be load that checkpoint
-        eval: Whether the model will be used for evaluation or not
+        model_type (type): Class of the model to instanciates
+        output_classes (int): Number of classes in the dataset
+        model_path (Path): If given, then the weights will be loaded from that checkpoint
+        eval (bool): Whether the model will be used for evaluation or not
     Returns:
-        model: PyTorch model
+        torch.nn.Module: Instantiated PyTorch model
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
