@@ -2,5 +2,7 @@
 __pycache__/
 *.py[cod]
 
+*.kate-swp
+
 config/model_config.py
 config/data_config.py
