@@ -1,6 +1,4 @@
-from typing import (
-    Union,
-)
+from typing import Union
 
 from src.networks.build_network import (
     ModelHelper
@@ -21,7 +19,7 @@ class ModelConfig:
     # Network part
     MODEL = ModelHelper.UDarkNet
 
-    CHANNELS: list[Union[int, tuple[int, int]]] = [3, 8, 16, 32, 32, 16]
+    CHANNELS: list[int] = [3, 8, 16, 32, 32, 16]
     SIZES: list[Union[int, tuple[int, int]]]  = [5, 3, 3, 3, 3, 3]   # Kernel sizes
     STRIDES: list[Union[int, tuple[int, int]]]  = [5, 3, 3, 2, 2, 2]
     PADDINGS: list[Union[int, tuple[int, int]]]  = [2, 1, 1, 1, 1, 1]

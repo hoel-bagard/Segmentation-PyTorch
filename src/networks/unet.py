@@ -1,14 +1,11 @@
 from collections import OrderedDict
 from typing import (
-    Optional,
     Callable,
     Union
 )
 
 import torch
-from torch import Tensor
 import torch.nn as nn
-import numpy as np
 
 from src.networks.layers import (
     SkipConnection,
@@ -19,13 +16,12 @@ from src.torch_utils.networks.network_utils import layer_init
 
 
 class UDarkNet(nn.Module):
-    def __init__(self, channels: list[Union[int, tuple[int, int, int]]],
+    def __init__(self, channels: list[int],
                  sizes: list[Union[int, tuple[int, int, int]]],
                  strides: list[Union[int, tuple[int, int, int]]],
                  paddings: list[Union[int, tuple[int, int, int]]],
-                 blocks: list[Union[int, tuple[int, int, int]]],
+                 blocks: list[int],
                  output_classes: int,
-                 aug_pipeline: Optional[Callable[[np.ndarray, np.ndarray], tuple[Tensor, Tensor]]] = None,
                  layer_init: Callable[[nn.Module], None] = layer_init, **kwargs):
         """
         Feature extractor
@@ -33,7 +29,9 @@ class UDarkNet(nn.Module):
             channels: List with the number of channels for each convolution
             sizes: List with the kernel size for each convolution
             strides: List with the stride for each convolution
-            padding: List with the padding for each convolution
+            paddings: List with the padding for each convolution
+            blocks: List with the number of blocks for the darknet blocks
+            output_class: Number of output classes
             layer_init: Function used to initialise the layers of the network
         """
         super().__init__()
@@ -52,7 +50,7 @@ class UDarkNet(nn.Module):
         if layer_init:
             self.apply(layer_init)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         conv_outputs = []
         for layer in self.conv:
             x = layer(x)
@@ -68,7 +66,7 @@ class UDarkNet(nn.Module):
         x = torch.sigmoid(x)
         return x
 
-    def get_weight_and_grads(self):
+    def get_weight_and_grads(self) -> OrderedDict:
         weight_grads = OrderedDict()
 
         for index, block in enumerate(self.conv):

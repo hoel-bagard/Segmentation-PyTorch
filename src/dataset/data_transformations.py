@@ -1,7 +1,6 @@
 import random
-from typing import (
-    Callable
-)
+from typing import Callable
+
 
 import cv2
 import numpy as np
@@ -92,8 +91,9 @@ def random_zoom(zoom_factor: float = 1.05):
     """ Randomly zoom on an image """
     def random_zoom_fn(imgs: torch.Tensor, labels: torch.Tensor):
         """ Randomly zoom on a batch of data (the "same" patch is taken across all images) """
-        print("\nDo not use the random zoom")
-        exit()
+
+        raise NotImplementedError("\nDo not use the random zoom")
+
         _, _, height, width = imgs.shape  # Assume that labels and images have the same size
         h = random.randint(0, int(height*(1-zoom_factor))-1)
         w = random.randint(0, int(width*(1-zoom_factor))-1)
