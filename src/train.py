@@ -11,7 +11,7 @@ from config.model_config import ModelConfig
 from src.loss import MSE_Loss
 from src.torch_utils.utils.trainer import Trainer
 from src.torch_utils.utils.tensorboard import TensorBoard
-from src.torch_utils.utils.metrics import Metrics
+from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.ressource_usage import resource_usage
 
@@ -30,8 +30,8 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
 
     if DataConfig.USE_TB:
-        metrics = Metrics(model, train_dataloader, val_dataloader,
-                          DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
+        metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
+                                        DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
         tensorboard = TensorBoard(model, metrics, DataConfig.LABEL_MAP, DataConfig.TB_DIR,
                                   ModelConfig.IMAGE_SIZES, segmentation=True, color_map=DataConfig.COLOR_MAP)
 
@@ -89,8 +89,6 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
     try:
         train_stop_time = time.time()
-        # train_dataloader.release()
-        # val_dataloader.release()
         tensorboard.close_writers()
         memory_peak, gpu_memory = resource_usage()
         print("Finished Training"
