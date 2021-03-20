@@ -17,23 +17,27 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
                    data_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
                    labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None
                    ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Loads image and masks for image segmentation.
+    """ Loads image and masks for image segmentation.
+
+    This function assumes that the masks' paths contain either "mask" or "seg" (and that the main image does not).
+
     Args:
-        data_path: Path to the dataset folder
-        get_mask_path: Function that returns the mask's path corresponding to a given image path
+        data_path (Path): Path to the dataset folder
+        get_mask_path (callable): Function that returns the mask's path corresponding to a given image path
         limit (int, optional): If given then the number of elements for each class in the dataset
                             will be capped to this number
-        load_data: If true then this function returns the images instead of their paths using the preprocessing_fns
-        data_preprocessing_fn: Function used to load data from their paths.
-        labels_preprocessing_fn: Function used to load labels from their paths.
+        load_data (bool): If true then this function returns the images already loaded instead of their paths.
+                          The images are loaded using the preprocessing functions (they must be provided)
+        data_preprocessing_fn (callable, optional): Function used to load data from their paths.
+        labels_preprocessing_fn (callable, optional): Function used to load labels from their paths.
     Return:
         numpy array containing the paths/images and the associated label
     """
     data, labels = [], []
 
     exts = [".jpg", ".png"]
-    file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
+    file_list = list([p for p in data_path.rglob('*') if p.suffix in exts
+                      and "seg" not in str(p) and "mask" not in str(p)])
     nb_imgs = len(file_list)
     for i, img_path in enumerate(file_list, start=1):
         clean_print(f"Processing image {img_path.name}    ({i}/{nb_imgs})", end="\r")
@@ -52,23 +56,17 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, int]] = None) -> np.ndarray:
+def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
-        data: either an image path or a batch of image paths, and return the loaded image(s)
-        size: size to which resize the images
+        data (path): either an image path or a batch of image paths, and return the loaded image(s)
     Returns:
         Image or batch of image
     """
     if isinstance(data, Path):
         img = cv2.imread(str(data))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # Resize is in the data loading function because it needs to be done
-        # before transforming the segmentation map into a one hot.
-        if size:
-            img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
-
         return img
     else:
         imgs = []
@@ -77,20 +75,18 @@ def default_load_data(data: Union[Path, list[Path]], size: Optional[tuple[int, i
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]], size: Optional[tuple[int, int]] = None) -> np.ndarray:
+def default_load_labels(label_paths: Union[Path, list[Path]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
-        size: size to which resize the images
     Returns:
         Segmentation mask or batch of segmentation masks
     """
     if isinstance(label_paths, Path):
         img = cv2.imread(str(label_paths))
+
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        if size:
-            img = cv2.resize(img, size, interpolation=cv2.INTER_AREA)
 
         # Transform the mask into a one hot mask
         width, height, _ = img.shape
@@ -98,7 +94,7 @@ def default_load_labels(label_paths: Union[Path, list[Path]], size: Optional[tup
         for key in range(len(DataConfig.COLOR_MAP)):
             one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
 
-        # Assert to check that each pixel of the segmentation mask has a class. Not used for performance.
+        # Assert to check that each pixel of the segmentation mask has a class. Not used for performance reasons.
         # assert np.sum(one_hot_mask) == width * height, f"At least one pixel has no class in image {str(label_paths)}"
 
         return one_hot_mask

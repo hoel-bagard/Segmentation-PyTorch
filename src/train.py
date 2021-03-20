@@ -32,8 +32,8 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
     if DataConfig.USE_TB:
         metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                         DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
-        tensorboard = TensorBoard(model, metrics, DataConfig.LABEL_MAP, DataConfig.TB_DIR,
-                                  ModelConfig.IMAGE_SIZES, segmentation=True, color_map=DataConfig.COLOR_MAP)
+        tensorboard = TensorBoard(model, DataConfig.TB_DIR, ModelConfig.IMAGE_SIZES, metrics, DataConfig.LABEL_MAP,
+                                  segmentation=True, color_map=DataConfig.COLOR_MAP)
 
     best_loss = 1000
     last_checkpoint_epoch = 0
@@ -72,11 +72,13 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
                         # Metrics for the Train dataset
                         tensorboard.write_segmentation(epoch, train_dataloader)
-                        train_acc = tensorboard.write_metrics(epoch)
+                        tensorboard.write_metrics(epoch)
+                        train_acc = metrics.get_avg_acc()
 
                         # Metrics for the Validation dataset
                         tensorboard.write_segmentation(epoch, val_dataloader, mode="Validation")
-                        val_acc = tensorboard.write_metrics(epoch, mode="Validation")
+                        tensorboard.write_metrics(epoch, mode="Validation")
+                        val_acc = metrics.get_avg_acc()
 
                         print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}",
                               end='\r', flush=True)
