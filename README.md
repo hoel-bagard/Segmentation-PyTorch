@@ -2,11 +2,11 @@
 ## Installation
 
 ### Dependencies
-torch
-torchvision
-torchsummary
-tensorboard
-opencv-python
+torch\
+torchvision\
+torchsummary\
+tensorboard\
+opencv-python\
 
 ### Clone the repository
 ```
