@@ -3,7 +3,6 @@
 
 ### Dependencies
 torch\
-torchvision\
 torchsummary\
 tensorboard\
 opencv-python\
