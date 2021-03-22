@@ -5,7 +5,7 @@
 torch\
 torchsummary\
 tensorboard\
-opencv-python\
+opencv-python
 
 ### Clone the repository
 ```
