@@ -1,6 +1,6 @@
 import time
 import os
-import subprocess
+from subprocess import CalledProcessError
 
 import torch
 import torch.nn as nn
@@ -80,21 +80,19 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
                         tensorboard.write_metrics(epoch, mode="Validation")
                         val_acc = metrics.get_avg_acc()
 
-                        print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}",
-                              end='\r', flush=True)
+                        print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}", end='\r')
 
-                    print(f"\nValidation loss: {epoch_loss:.5e}  -"
-                          f"  Took {time.perf_counter() - validation_start_time:.5f}s", flush=True)
+                    print(f"\nValidation loss: {epoch_loss:.5e}  -  Took {time.time() - validation_start_time:.5f}s")
             scheduler.step()
     except KeyboardInterrupt:
         print("\n")
 
+    train_stop_time = time.time()
+    print("Finished Training"
+          f"\n\tTraining time : {train_stop_time - train_start_time:.03f}s")
+    tensorboard.close_writers()
     try:
-        train_stop_time = time.time()
-        tensorboard.close_writers()
         memory_peak, gpu_memory = resource_usage()
-        print("Finished Training"
-              f"\n\tTraining time : {train_stop_time - train_start_time:.03f}s"
-              f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}")
-    except subprocess.CalledProcessError:
-        print("Finished training")
+        print(f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}")
+    except CalledProcessError:
+        pass

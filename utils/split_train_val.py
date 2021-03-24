@@ -4,7 +4,7 @@ import shutil
 from random import shuffle
 
 
-def get_mask_path_dice(img_path: Path) -> list[Path]:
+def get_files_dice(img_path: Path) -> list[Path]:
     return [Path(str(img_path.stem) + "_segDotsTopOnly.jpg"),
             Path(str(img_path.stem) + "_segDots.jpg"),
             Path(str(img_path.stem) + "_segDie.jpg"),
@@ -29,7 +29,7 @@ def main():
 
     exts = [".jpg", ".png"]
 
-    get_path_mask_fn = get_mask_path_dice if args.n == "dice" else get_mask_path_tape
+    get_path_mask_fn = get_files_dice if args.n == "dice" else get_mask_path_tape
     # This assumes that the masks' paths contain either "mask" or "seg" (and that the main image does not).
     img_path_list = list([p for p in data_path.rglob('*') if p.suffix in exts
                           and "seg" not in str(p) and "mask" not in str(p)])
@@ -52,7 +52,7 @@ def main():
 
             dest_img_path.mkdir(parents=True, exist_ok=True)
             shutil.move(img_path, dest_img_path)
-            for img_mask_path, dest_mask_path in zip (img_mask_paths, dest_mask_paths):
+            for img_mask_path, dest_mask_path in zip(img_mask_paths, dest_mask_paths):
                 shutil.move(img_mask_path, dest_mask_path)
 
     print("\nFinished splitting dataset")

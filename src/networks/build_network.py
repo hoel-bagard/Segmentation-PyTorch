@@ -10,7 +10,7 @@ class ModelHelper:
     UDarkNet = UDarkNet
 
 
-def build_model(model_type: type, output_classes: bool, model_path: Optional[str] = None,
+def build_model(model_type: type, output_classes: bool, model_path: Optional[Path] = None,
                 eval_mode: bool = False, **kwargs):
     """ Function that instanciates the given model.
 
