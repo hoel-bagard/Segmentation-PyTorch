@@ -31,7 +31,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
 
     if DataConfig.USE_TB:
         metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
-                                        DataConfig.LABEL_MAP, max_batches=None, segmentation=True)
+                                        DataConfig.LABEL_MAP, max_batches=10, segmentation=True)
         tensorboard = TensorBoard(model, DataConfig.TB_DIR, ModelConfig.IMAGE_SIZES, metrics, DataConfig.LABEL_MAP,
                                   segmentation=True, color_map=DataConfig.COLOR_MAP)
 

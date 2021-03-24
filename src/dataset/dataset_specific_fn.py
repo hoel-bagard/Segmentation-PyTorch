@@ -2,7 +2,8 @@ from pathlib import Path
 
 
 def get_mask_path_dice(img_path: Path):
-    return img_path.parent / Path(str(img_path.stem) + "_segDotsTopOnly.jpg")
+    # return img_path.parent / Path(str(img_path.stem) + "_segDotsTopOnly.jpg")
+    return img_path.parent / Path(str(img_path.stem) + "_segDots.jpg")
 
 
 def get_mask_path_tape(img_p: Path):
