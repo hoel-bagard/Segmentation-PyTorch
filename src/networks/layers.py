@@ -56,8 +56,14 @@ class SkipConnection(nn.Module):
         self.batch_norm = nn.BatchNorm2d(out_filters)
 
     def forward(self, input_op, skip_op):
-        x = torch.cat((input_op, skip_op), dim=-3)  # Channels first in PyTorch........
 
+        # y_padding = skip_op.size()[-2] - input_op.size()[-2]
+        # x_padding = skip_op.size()[-1] - input_op.size()[-1]
+
+        # input_op = F.pad(input_op, [x_padding // 2, x_padding - x_padding // 2,
+        #                             y_padding // 2, y_padding - y_padding // 2])
+
+        x = torch.cat((input_op, skip_op), dim=-3)  # Channels first in PyTorch
         x = self.conv(x)
         x = self.batch_norm(x)
         x = F.leaky_relu(x, 0.1)
