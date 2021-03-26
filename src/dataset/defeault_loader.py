@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 
 from config.data_config import DataConfig
+from config.model_config import ModelConfig
 from src.torch_utils.utils.misc import clean_print
 
 
@@ -56,7 +57,7 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]], **kwargs) -> np.ndarray:
+def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
@@ -66,7 +67,12 @@ def default_load_data(data: Union[Path, list[Path]], **kwargs) -> np.ndarray:
     """
     if isinstance(data, Path):
         img = cv2.imread(str(data))
+        width, height, _ = img.shape
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        if (width, height) != ModelConfig.IMAGE_SIZES:
+            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
+
         return img
     else:
         imgs = []
@@ -75,7 +81,7 @@ def default_load_data(data: Union[Path, list[Path]], **kwargs) -> np.ndarray:
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]], **kwargs) -> np.ndarray:
+def default_load_labels(label_paths: Union[Path, list[Path]]) -> np.ndarray:
     """
     Function that loads image(s) from path(s)
     Args:
@@ -87,9 +93,12 @@ def default_load_labels(label_paths: Union[Path, list[Path]], **kwargs) -> np.nd
         img = cv2.imread(str(label_paths))
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        width, height, _ = img.shape
+
+        if (width, height) != ModelConfig.IMAGE_SIZES:
+            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_NEAREST)
 
         # Transform the mask into a one hot mask
-        width, height, _ = img.shape
         one_hot_mask = np.zeros((width, height, DataConfig.OUTPUT_CLASSES))
         for key in range(len(DataConfig.COLOR_MAP)):
             one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
