@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser("Segmentation project from PascalVOC labels")
     parser.add_argument("--limit", default=None, type=int, help="Limits the number of apparition of each class")
     parser.add_argument("--load_data", action="store_true", help="Loads all the videos into RAM")
+    parser.add_argument("--name", type=str, help="Not used in the code. Use it to know what a train is when using ps.")
     args = parser.parse_args()
 
     if not DataConfig.KEEP_TB:
@@ -63,9 +64,9 @@ def main():
 
     # Data augmentation done on cpu.
     augmentation_pipeline = transforms.compose_transformations((
-        transforms.vertical_flip,
+        # transforms.vertical_flip,
         transforms.horizontal_flip,
-        transforms.rotate180,
+        # transforms.rotate180,
     ))
     # GPU pipeline used by both validation and train
     base_gpu_pipeline = (
