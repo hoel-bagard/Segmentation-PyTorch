@@ -40,7 +40,7 @@ def main():
     exts = [".jpg", ".png"]
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "_seg" in str(p)])
     nb_imgs = len(file_list)
-    print(f"Found {nb_imgs} to process, starting to convert them to true black/white")
+    print(f"Found {nb_imgs} images to process, starting to convert them to true black/white")
 
     imgs_processed = 0
     mp_args = list([(img_path,) for img_path in file_list])
