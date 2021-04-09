@@ -25,7 +25,10 @@ def worker(args: tuple[Path]):
             else:
                 img[i, j] = [255, 255, 255]
 
-    cv2.imwrite(str(file_path), img)
+    # Do not use jpg for masks since it is a lossy format.
+    # cv2.imwrite(str(file_path), img, [cv2.IMWRITE_JPEG_QUALITY, 100])
+    cv2.imwrite(str(file_path.with_suffix(".png")), img)
+    file_path.unlink()
 
     return None
 
