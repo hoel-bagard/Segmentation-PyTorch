@@ -15,7 +15,7 @@ def worker(args: tuple[Path, list[tuple[int, int, int]]]):
     Args:
         img_path (Path): Path to the image to convert
         output_dir (Path): Path to the output folder
-        colors (list): List of the valid colors
+        colors (np.ndarray): List of the valid colors
 
     Return:
         None
@@ -26,23 +26,12 @@ def worker(args: tuple[Path, list[tuple[int, int, int]]]):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)   # Colors are in RGB
 
     height, width, _ = img.shape
-    colors = np.asarray(colors)  # TODO: Move that outside the worker
-
-    # Idea here was to first threshold the pixels. Actually makes things much worse. TODO: remove.
-    # threshold = 10_000
-    # for i in range(height):
-    #     for j in range(width):
-    #         if not (img[i, j] == colors).all(1).any():
-    #             diffs = ((colors - img[i, j]) ** 2).sum(axis=1)
-    #             closest = diffs.argmin()
-    #             if diffs[closest] < threshold:
-    #                 img[i, j] = colors[closest]
 
     # Passes a kernel on the image.
     # If a pixel does not have a valid color, then it takes the value of the most represented color within the kernel.
     kernel_size = 5//2    # //2 here for convenience
-    for i in range(0, height):
-        for j in range(0, width):
+    for i in range(height):
+        for j in range(width):
             if not (img[i, j] == colors).all(1).any():
                 sub_img = img[max(0, i-kernel_size):i+kernel_size, max(0, j-kernel_size):j+kernel_size]
                 unique, counts = np.unique(np.reshape(sub_img, (-1, 3)), return_counts=True, axis=0)
@@ -53,7 +42,6 @@ def worker(args: tuple[Path, list[tuple[int, int, int]]]):
     output_path: Path = output_dir / file_path.with_suffix(".png").name
     output_path.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(output_path), img)
-    # file_path.unlink()   # Deletes original file
 
     return None
 
@@ -77,6 +65,7 @@ def main():
         data = json.load(json_file)
         for key, entry in enumerate(data):
             colors.append(entry["color"])
+    colors = np.asarray(colors)
 
     exts = [".jpg", ".png", ".bmp"]
     file_list = list([p for p in data_path.rglob('*') if (p.suffix in exts
