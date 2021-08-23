@@ -17,7 +17,7 @@ from src.dataset.defeault_loader import (
     default_load_data,
     default_load_labels
 )
-from src.dataset.dataset_specific_fn import get_mask_path_dice as get_mask_path
+from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
 import src.dataset.data_transformations as transforms
 from src.torch_utils.utils.misc import get_config_as_dict
 from src.networks.build_network import build_model

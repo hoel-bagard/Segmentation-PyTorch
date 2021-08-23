@@ -8,3 +8,7 @@ def get_mask_path_dice(img_path: Path):
 
 def get_mask_path_tape(img_p: Path):
     return img_p.parent / ("_".join(str(img_p.name).split("_")[:-1]) + "_mask_" + str(img_p.name).split("_")[-1])
+
+
+def default_get_mask_path(img_p: Path):
+    return img_p.parent / (img_p.stem + "_mask.png")

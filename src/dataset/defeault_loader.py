@@ -36,7 +36,7 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
     """
     data, labels = [], []
 
-    exts = [".jpg", ".png"]
+    exts = [".jpg", ".png", ".bmp"]
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts
                       and "seg" not in str(p) and "mask" not in str(p)])
     nb_imgs = len(file_list)
@@ -104,7 +104,8 @@ def default_load_labels(label_paths: Union[Path, list[Path]]) -> np.ndarray:
             one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
 
         # Assert to check that each pixel of the segmentation mask has a class. Not used for performance reasons.
-        # assert np.sum(one_hot_mask) == np.prod(ModelConfig.IMAGE_SIZES), f"At least one pixel has no class in image {str(label_paths)}"
+        assert np.sum(one_hot_mask) == np.prod(ModelConfig.IMAGE_SIZES), (f"At least one pixel has no class"
+                                                                          f"in image {str(label_paths)}")
 
         return one_hot_mask
     else:
