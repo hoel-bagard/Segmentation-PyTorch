@@ -1,9 +1,9 @@
+import os
 from argparse import ArgumentParser
-from pathlib import Path
-from shutil import get_terminal_size
 from itertools import product
 from multiprocessing import Pool
-import os
+from pathlib import Path
+from shutil import get_terminal_size
 
 
 import cv2
@@ -33,7 +33,7 @@ def grid_search_worker(args):
     true_negs = 0.0
     true_pos = 0.0
 
-    for i, img_path in enumerate(file_list):
+    for _, img_path in enumerate(file_list):
         img = cv2.imread(str(img_path), 0)  # 0 to read in grayscale mode
         # Run the blob detector on the image and store the result
         keypoints_pred = detector.detect(img)
@@ -72,16 +72,16 @@ def grid_search(data_path: Path):
         for result in tqdm(pool.imap(grid_search_worker, mp_args, chunksize=10), total=len(mp_args)):
             results.append(result)
 
-    stats = []
+    stats_list = []
     for true_negs, true_pos in results:
         precision = true_pos / (true_pos + (neg_elts-true_negs))
         recall = true_pos / pos_elts
         acc = (true_pos + true_negs) / (neg_elts + pos_elts)
         pos_acc = true_pos / pos_elts
         neg_acc = true_negs / neg_elts
-        stats.append((precision, recall, acc, pos_acc, neg_acc))
+        stats_list.append((precision, recall, acc, pos_acc, neg_acc))
 
-    stats = np.asarray(stats)
+    stats = np.asarray(stats_list)
     stats_name = ("precision", "recall", "accuracy", "positive accuracy", "negative accuracy")
     best_results_idx = []
     for stat_idx in range(len(stats)):

@@ -1,8 +1,8 @@
 import argparse
-import os
 import glob
-import xml.etree.ElementTree as ET
-from typing import Tuple, Dict
+import os
+import xml.etree.ElementTree as ET  # noqa: N817
+from typing import Dict, Tuple, Union
 
 import cv2
 import numpy as np
@@ -33,7 +33,7 @@ def main():
 
         # It seems like glob does not work with Japanese characters
         f = []
-        for dirpath, subdirs, files in os.walk(os.path.join(data_path, "images")):
+        for dirpath, _subdirs, files in os.walk(os.path.join(data_path, "images")):
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:
@@ -59,14 +59,18 @@ def main():
                 break
 
 
-def prepare_data(image_path: str, label_path: str, label_map: Dict,
+def prepare_data(image_path: str,
+                 label_path: str,
+                 label_map: Dict,
                  new_sizes: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Takes in image and label paths, returns ready to use data.
+    """Takes in image and label paths, returns ready to use data.
+
     Args:
         image_path: Path to the image
         label_path: Path to the corresponding xml file (pascal VOC label)
+        label_map (dict): ?
         new_sizes: Size to which the images will be resized
+
     Return:
         Image and associated segmentation map
     """
@@ -86,9 +90,9 @@ def prepare_data(image_path: str, label_path: str, label_map: Dict,
 
 def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
     root: ET.Element = ET.parse(xml_path).getroot()
-    objects: ET.Element = root.findall("object")
+    objects: list[ET.Element] = root.findall("object")
 
-    labels = []
+    labels: list[list[Union[int, np.ndarray]]] = []
     for item in objects:
         difficult = int(item.find("difficult").text)
         if difficult:
@@ -119,11 +123,12 @@ def draw_segmentation_map(labels: np.ndarray, shape: Tuple[int, int]):
 
 
 def resize_labels(img_labels: np.ndarray, org_height: int, org_width: int, new_sizes: Tuple[int, int]):
-    """
-    Resizes labels so that they match the resized image
+    """Resizes labels so that they match the resized image.
+
     Args:
         img_labels: labels for one image, array of  [class, bbox]
-        org_width, org_height: dimensions of the image before it got resized
+        org_width: Width of the image before it got resized
+        org_height: Height of the image before it got resized
         new_sizes: Size to which the images will be resized
     """
     resized_labels = []

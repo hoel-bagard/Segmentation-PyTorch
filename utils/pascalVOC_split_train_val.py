@@ -1,9 +1,9 @@
 import argparse
-import os
 import glob
+import os
 import shutil
+import xml.etree.ElementTree as ET  # noqa: N817
 from random import shuffle
-import xml.etree.ElementTree as ET
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
 
         # It seems like glob does not work with Japanese characters
         f = []
-        for dirpath, subdirs, files in os.walk(os.path.join(args.data_path, "images")):
+        for dirpath, _subdirs, files in os.walk(os.path.join(args.data_path, "images")):
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:

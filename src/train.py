@@ -1,5 +1,5 @@
-import time
 import os
+import time
 from subprocess import CalledProcessError
 
 import torch
@@ -9,16 +9,16 @@ import torch.nn as nn
 from config.data_config import DataConfig
 from config.model_config import ModelConfig
 from src.loss import MSE_Loss
-from src.torch_utils.utils.trainer import Trainer
-from src.torch_utils.utils.tensorboard import TensorBoard
-from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.ressource_usage import resource_usage
+from src.torch_utils.utils.tensorboard import TensorBoard
+from src.torch_utils.utils.trainer import Trainer
 
 
 def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: BatchGenerator):
-    """
-    Trains and validate the given model using the datasets.
+    """Trains and validate the given model using the datasets.
+
     Args:
         model: Model to train
         train_dataloader: BatchGenerator of training data

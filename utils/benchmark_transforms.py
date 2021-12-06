@@ -3,7 +3,7 @@ from time import time
 
 
 class PowerOfDict(object):
-    """ Returns number to the power of N """
+    """Returns number to the power of N."""
 
     def __init__(self, n: int):
         self.n = n
@@ -15,7 +15,7 @@ class PowerOfDict(object):
 
 
 class PowerOf(object):
-    """ Returns number to the power of N """
+    """Returns number to the power of N."""
 
     def __init__(self, n: int):
         self.n = n

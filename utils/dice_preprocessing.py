@@ -1,17 +1,19 @@
+import os
+import shutil
 from argparse import ArgumentParser
 from multiprocessing import Pool
-import os
 from pathlib import Path
-import shutil
 
 import cv2
 
 
 def worker(args: tuple[Path]):
-    """
-    Worker in charge of converting an image to true black/white
+    """Worker in charge of converting an image to true black/white.
+
     Args:
-        img_path: Path to the image to convert
+        args: Tuple containing:
+            img_path: Path to the image to convert
+
     Return:
         None
     """

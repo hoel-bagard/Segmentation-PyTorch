@@ -1,6 +1,6 @@
-from pathlib import Path
-from json import load
 import os
+from json import load
+from pathlib import Path
 
 import numpy as np
 

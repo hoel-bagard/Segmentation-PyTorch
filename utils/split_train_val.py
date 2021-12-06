@@ -1,6 +1,6 @@
 import argparse
-from pathlib import Path
 import shutil
+from pathlib import Path
 from random import shuffle
 
 

@@ -1,19 +1,21 @@
-from argparse import ArgumentParser
-from pathlib import Path
-from multiprocessing import Pool
 import os
 import shutil
+from argparse import ArgumentParser
+from multiprocessing import Pool
+from pathlib import Path
 
 import cv2
 import numpy as np
 
 
 def convert_worker(args: tuple[Path, Path, int]):
-    """
-    Worker in charge of thresholding and converting an image
+    """Worker in charge of thresholding and converting an image.
+
     Args:
-        img_path: Path to the image to convert
-        output_path: Folder to where the new mask will be saved
+        args: Tuple containing:
+            img_path: Path to the image to convert
+            output_path: Folder to where the new mask will be saved
+
     Return:
         output_file_path: Path of the saved image.
     """
@@ -54,7 +56,7 @@ def main():
     mp_args = list([(img_path, output_path, threshold) for img_path in file_list])
     nb_images_processed = 0  # Use to count the number of good / bad samples
     with Pool(processes=int(os.cpu_count() * 0.8)) as pool:
-        for result in pool.imap(convert_worker, mp_args, chunksize=10):
+        for _result in pool.imap(convert_worker, mp_args, chunksize=10):
             nb_images_processed += 1
             msg = f"Processing status: ({nb_images_processed}/{nb_imgs})"
             print(msg + ' ' * (shutil.get_terminal_size(fallback=(156, 38)).columns - len(msg)), end='\r', flush=True)
