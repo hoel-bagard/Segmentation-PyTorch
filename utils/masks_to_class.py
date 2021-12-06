@@ -1,20 +1,22 @@
-from argparse import ArgumentParser
-from pathlib import Path
-from multiprocessing import Pool
 import os
 import shutil
+from argparse import ArgumentParser
+from multiprocessing import Pool
+from pathlib import Path
 
 import cv2
 import numpy as np
 
 
 def sort_worker(args: tuple[Path, Path, Path]):
-    """
-    Worker in charge of sorting an image
+    """Worker in charge of sorting an image.
+
     Args:
-        img_path: Path to the image to sort
-        good_output_path: Path to where the images with an empty mask should be copied
-        bad_output_path: Path to where the images with a non-empty mask should be copied
+        args: Tuple containing:
+            img_path: Path to the image to sort
+            good_output_path: Path to where the images with an empty mask should be copied
+            bad_output_path: Path to where the images with a non-empty mask should be copied
+
     Return:
         0 it the image was a bad one, 1 if it was a good one
     """

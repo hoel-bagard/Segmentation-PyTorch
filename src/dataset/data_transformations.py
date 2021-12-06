@@ -1,16 +1,18 @@
 import random
-from typing import Callable
-
+from typing import Callable, Union
 
 import cv2
 import numpy as np
 import torch
 
+NumpyOrTensorType = Union[torch.Tensor, np.ndarray]  # TODO  replace with |  when 3.10
 
-def compose_transformations(transformations: list[Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]]):
-    """ Returns a function that applies all the given transformations"""
-    def compose_transformations_fn(imgs: list[np.ndarray], labels: list[np.ndarray]):
-        """ Apply transformations on a batch of data"""
+
+def compose_transformations(transformations: list[Callable[[NumpyOrTensorType, NumpyOrTensorType],
+                                                           tuple[NumpyOrTensorType, NumpyOrTensorType]]]):
+    """Returns a function that applies all the given transformations."""
+    def compose_transformations_fn(imgs: NumpyOrTensorType, labels: NumpyOrTensorType):
+        """Apply transformations on a batch of data."""
         for fn in transformations:
             imgs, labels = fn(imgs, labels)
         return imgs, labels
@@ -26,9 +28,9 @@ def crop(top: int, bottom: int, left: int, right: int):
 
 
 def random_crop(reduction_factor: float = 0.9):
-    """ Randomly crops image """
+    """Randomly crops image."""
     def random_crop_fn(imgs: np.ndarray, labels: np.ndarray):
-        """ Randomly crops a batch of data (the "same" patch is taken across all images) """
+        """Randomly crops a batch of data (the "same" patch is taken across all images)."""
         h = random.randint(0, int(imgs.shape[1]*(1-reduction_factor))-1)
         w = random.randint(0, int(imgs.shape[2]*(1-reduction_factor))-1)
         cropped_imgs = imgs[:, h:h+int(imgs.shape[1]*reduction_factor), w:w+int(imgs.shape[2]*reduction_factor)]
@@ -38,7 +40,7 @@ def random_crop(reduction_factor: float = 0.9):
 
 
 def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
-    """ Randomly flips the img around the x-axis """
+    """Randomly flips the img around the x-axis."""
     for i in range(len(imgs)):
         if random.random() > 0.5:
             imgs[i] = cv2.flip(imgs[i], 0)
@@ -47,7 +49,7 @@ def vertical_flip(imgs: np.ndarray, labels: np.ndarray):
 
 
 def horizontal_flip(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """ Randomly flips the img around the y-axis """
+    """Randomly flips the img around the y-axis."""
     for i in range(len(imgs)):
         if random.random() > 0.5:
             imgs[i] = cv2.flip(imgs[i], 1)
@@ -56,7 +58,7 @@ def horizontal_flip(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, n
 
 
 def rotate180(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """ Randomly rotate the image by 180 degrees """
+    """Randomly rotate the image by 180 degrees."""
     for i in range(len(imgs)):
         if random.random() > 0.5:
             imgs[i] = cv2.rotate(imgs[i], cv2.ROTATE_180)
@@ -80,7 +82,7 @@ def to_tensor():
 
 
 def normalize(labels_too: bool = True):
-    """ Normalize a batch of images so that its values are in [0, 1] """
+    """Normalize a batch of images so that its values are in [0, 1]."""
     def normalize_fn(imgs: torch.Tensor, labels: torch.Tensor):
         return imgs/255.0, labels/255.0 if labels_too else labels
     return normalize_fn
@@ -88,10 +90,9 @@ def normalize(labels_too: bool = True):
 
 def random_zoom(zoom_factor: float = 1.05):
     zoom_factor = 1 / zoom_factor
-    """ Randomly zoom on an image """
+    """Randomly zoom on an image."""
     def random_zoom_fn(imgs: torch.Tensor, labels: torch.Tensor):
-        """ Randomly zoom on a batch of data (the "same" patch is taken across all images) """
-
+        """Randomly zoom on a batch of data (the "same" patch is taken across all images)."""
         raise NotImplementedError("\nDo not use the random zoom")
 
         _, _, height, width = imgs.shape  # Assume that labels and images have the same size
@@ -113,7 +114,7 @@ def noise():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def noise_fn(imgs: torch.Tensor, labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """ Add random noise to the image """
+        """Add random noise to the image."""
         noise_offset = (torch.rand(imgs.shape, device=device)-0.5)*0.05
         noise_scale = (torch.rand(imgs.shape, device=device) * 0.2) + 0.9
 

@@ -1,25 +1,29 @@
+import json
+import os
+import shutil
 from argparse import ArgumentParser
 from multiprocessing import Pool
-import os
 from pathlib import Path
-import shutil
-import json
 
 import cv2
 import numpy as np
 
 
-def worker(args: tuple[Path, list[tuple[int, int, int]]]):
-    """ Worker in charge of converting an image to valid colors only.
+def worker(args: tuple[Path, Path, np.ndarray]):
+    """Worker in charge of converting an image to valid colors only.
 
     Args:
-        img_path (Path): Path to the image to convert
-        output_dir (Path): Path to the output folder
-        colors (np.ndarray): List of the valid colors
+        args: Tuple containing:
+            img_path (Path): Path to the image to convert
+            output_dir (Path): Path to the output folder
+            colors (np.ndarray): List of the valid colors
 
     Return:
         None
     """
+    file_path: Path
+    output_dir: Path
+    colors: np.ndarray
     file_path, output_dir, colors = args
 
     img = cv2.imread(str(file_path))
@@ -63,7 +67,7 @@ def main():
     colors = []  # List of valid colors
     with open(class_path) as json_file:
         data = json.load(json_file)
-        for key, entry in enumerate(data):
+        for _key, entry in enumerate(data):
             colors.append(entry["color"])
     colors = np.asarray(colors)
 

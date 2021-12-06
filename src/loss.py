@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 
 
-class CE_Loss(nn.Module):
-    """PyTorch's cross entropy loss"""
+class CE_Loss(nn.Module):  # noqa: N801
+    """PyTorch's cross entropy loss."""
     def __init__(self, weight: Optional[list[int]] = None):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -18,8 +18,8 @@ class CE_Loss(nn.Module):
         return loss
 
 
-class MSE_Loss(nn.Module):
-    """MSE loss from the past"""
+class MSE_Loss(nn.Module):  # noqa: N801
+    """MSE loss from the past."""
     def __init__(self, negative_loss_factor: int = 50):
         super().__init__()
         self.negative_loss_factor = negative_loss_factor

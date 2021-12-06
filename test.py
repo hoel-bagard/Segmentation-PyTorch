@@ -1,27 +1,27 @@
 from argparse import ArgumentParser
-from pathlib import Path
-from os import cpu_count
 from json import load
+from os import cpu_count
+from pathlib import Path
 from typing import Optional
 
 import cv2
-from einops import rearrange
 import numpy as np
 import torch
+from einops import rearrange
 
-from config.model_config import ModelConfig
-from src.networks.build_network import build_model
-from src.torch_utils.utils.misc import get_config_as_dict
 import src.dataset.data_transformations as transforms
-from src.torch_utils.utils.batch_generator import BatchGenerator
-from src.dataset.defeault_loader import (
-    default_loader,
-    default_load_data,
-    default_load_labels
-)
+from config.model_config import ModelConfig
 from src.dataset.dataset_specific_fn import get_mask_path_tape as get_mask_path
+from src.dataset.default_loader import (
+    default_load_data,
+    default_load_labels,
+    default_loader
+)
+from src.networks.build_network import build_model
+from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.draw import draw_segmentation
 from src.torch_utils.utils.metrics import Metrics
+from src.torch_utils.utils.misc import get_config_as_dict
 
 
 def show_image(img, title: str = "Image", already_bgr: bool = False):
@@ -37,23 +37,24 @@ def show_image(img, title: str = "Image", already_bgr: bool = False):
 
 def draw_blobs(img, mask_pred: np.ndarray, mask_label: np.ndarray, keypoints_pred,
                size: Optional[tuple[int, int]] = None) -> np.ndarray:
-    """
-    Place the segmentation masks next to the original image.
-    Also puts the predicted blobs on the original image.
+    """Place the segmentation masks next to the original image. Also puts the predicted blobs on the original image.
+
     Args:
         img: Original image
         mask_pred: RGB segmentation map predicted by the network
         mask_label: RGB label segmentation mask
         keypoints_pred: Blobs from the opencv blob detector
         size: If given, the images will be resized to this size
-    Returns: RGB segmentation masks and original image (in one image)
+
+    Returns:
+        (np.ndarray): RGB segmentation masks and original image (in one image)
     """
     img = rearrange(img, "c w h -> w h c").cpu().detach().numpy()
     img = np.asarray(img * 255.0, dtype=np.uint8)
     width, height, _ = img.shape
 
     # Create a blank image with some text to explain what things are
-    text_img = np.full((width, height, 3), 255,  dtype=np.uint8)
+    text_img = np.full((width, height, 3), 255, dtype=np.uint8)
     text_img = cv2.putText(text_img, "Top left: input image.", (20, 20),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
     text_img = cv2.putText(text_img, "Top right: label mask", (20, 40),
@@ -155,7 +156,7 @@ def main():
 
         # Redo a pass over the dataset to get more information if requested
         if args.show_imgs or args.use_blob_detection:
-            for step, (inputs, labels) in enumerate(dataloader, start=1):
+            for _step, (inputs, labels) in enumerate(dataloader, start=1):
                 predictions = model(inputs)
 
                 if args.use_blob_detection:
