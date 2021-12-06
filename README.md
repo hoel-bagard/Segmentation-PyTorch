@@ -35,3 +35,15 @@ CUDA_VISIBLE_DEVICES=0 python train.py
 Notes:
 The whole code folder will be copied in the checkpoint directory, in order to always have code that goes with the checkpoints. This means that you should not put your virtualenv or checkpoint directory in the code folder.
 `CUDA_VISIBLE_DEVICES` is used to select with GPU to use. Check that the one you plan to use is free before you use it by running the `nvidia-smi` command.
+
+
+## Misc
+### Formating
+The code is trying to follow diverse PEPs conventions (notably PEP8). To have a similar dev environment you can install the following packages (pacman is for arch-based linux distros):
+
+```
+sudo pacman -S flake8 python-flake8-docstrings
+pip install pep8-naming flake8-import-order
+```
+
+(The docstrings follow the google format.)
