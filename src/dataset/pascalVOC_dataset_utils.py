@@ -1,7 +1,7 @@
-import os
 import glob
-import xml.etree.ElementTree as ET
-from typing import Tuple, Dict
+import os
+import xml.etree.ElementTree as ET  # noqa: N817
+from typing import Dict, Tuple, Union
 
 import cv2
 import numpy as np
@@ -9,20 +9,25 @@ import numpy as np
 from config.model_config import ModelConfig
 
 
-def load_voc_seg(data_path: str, label_map: Dict,
-                 limit: int = None, load_data: bool = False) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Loads VOC labels for image segmentation.
+def load_voc_seg(data_path: str,
+                 label_map: Dict,
+                 limit: int = None,
+                 load_data: bool = False) -> np.ndarray:
+    """Loads VOC labels for image segmentation.
+
+    TODO: Return a tuple instead. Use pathlib.
+
     Args:
         data_path: Path to the VOC2007 folder (included)
         label_map: Dictionnary mapping int to class name
         limit (int, optional): If given then the number of elements for each class in the dataset
                             will be capped to this number
         load_data: If true then this function returns the videos instead of their paths
+
     Return:
         numpy array containing the paths/images and the associated label
     """
-    data = []
+    data: list[tuple[Union[np.ndarray, str], Union[np.ndarray, str]]] = []
     for i, label_path in enumerate(glob.glob(os.path.join(data_path, "**", "*.xml"), recursive=True)):
         root: ET.Element = ET.parse(label_path).getroot()
         image_path: str = root.find("path").text
@@ -30,8 +35,8 @@ def load_voc_seg(data_path: str, label_map: Dict,
         image_subpath = os.path.join(*image_path.split(os.path.sep)[-2:])
 
         # It seems like glob does not work with Japanese characters
-        f = []
-        for dirpath, subdirs, files in os.walk(os.path.join(data_path, "images")):
+        f: list[str] = []
+        for dirpath, _subdirs, files in os.walk(os.path.join(data_path, "images")):
             f.extend(os.path.join(dirpath, x) for x in files)
 
         for filename in f:
@@ -42,24 +47,26 @@ def load_voc_seg(data_path: str, label_map: Dict,
         # Load data directly if everything should be in RAM
         if load_data:
             resized_img, seg_map = prepare_data(image_path, label_path, label_map)
-            data.append([resized_img, seg_map])
+            data.append((resized_img, seg_map))
         else:
-            data.append([image_path, label_path])
+            data.append((image_path, label_path))
 
         if limit and i == limit-1:
             break
 
-    data = np.asarray(data, dtype=object)
-
-    return data
+    return np.asarray(data, dtype=object)
 
 
 def prepare_data(image_path: str, label_path: str, label_map: Dict) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Takes in image and label paths, returns ready to use data.
+    """Takes in image and label paths, returns ready to use data.
+
+    TODO: Pathlib.
+
     Args:
         image_path: Path to the image
         label_path: Path to the corresponding xml file (pascal VOC label)
+        label_map (dict): TODO
+
     Return:
         Image and associated segmentation map
     """
@@ -117,11 +124,12 @@ def draw_segmentation_map(labels: np.ndarray, shape: Tuple[int, int]):
 
 
 def resize_labels(img_labels: np.ndarray, org_height: int, org_width: int):
-    """
-    Resizes labels so that they match the resized image
+    """Resizes labels so that they match the resized image.
+
     Args:
         img_labels: labels for one image, array of  [class, bbox]
-        org_width, org_height: dimensions of the image before it got resized
+        org_width: Width of the image before it got resized
+        org_height: Height of the image before it got resized
     """
     resized_labels = []
     for cls, bbox in img_labels:

@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import (
     Callable,
-    Union,
-    Optional
+    Optional,
+    Union
 )
 
 import cv2
@@ -13,28 +13,32 @@ from config.model_config import ModelConfig
 from src.torch_utils.utils.misc import clean_print
 
 
-def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
-                   limit: int = None, load_data: bool = False,
+def default_loader(data_path: Path,
+                   get_mask_path_fn: Callable[[Path], Path],
+                   limit: int = None,
+                   load_data: bool = False,
                    data_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
                    labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None
                    ) -> tuple[np.ndarray, np.ndarray]:
-    """ Loads image and masks for image segmentation.
+    """Loads image and masks for image segmentation.
 
     This function assumes that the masks' paths contain either "mask" or "seg" (and that the main image does not).
 
     Args:
         data_path (Path): Path to the dataset folder
-        get_mask_path (callable): Function that returns the mask's path corresponding to a given image path
+        get_mask_path_fn (callable): Function that returns the mask's path corresponding to a given image path
         limit (int, optional): If given then the number of elements for each class in the dataset
                             will be capped to this number
         load_data (bool): If true then this function returns the images already loaded instead of their paths.
                           The images are loaded using the preprocessing functions (they must be provided)
         data_preprocessing_fn (callable, optional): Function used to load data from their paths.
         labels_preprocessing_fn (callable, optional): Function used to load labels from their paths.
+
     Return:
         numpy array containing the paths/images and the associated label
     """
-    data, labels = [], []
+    data: list[Union[np.ndarray, Path]] = []
+    labels: list[Union[np.ndarray, Path]] = []
 
     exts = [".jpg", ".png", ".bmp"]
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts
@@ -58,10 +62,11 @@ def default_loader(data_path: Path, get_mask_path_fn: Callable[[Path], Path],
 
 
 def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
-    """
-    Function that loads image(s) from path(s)
+    """Function that loads image(s) from path(s).
+
     Args:
         data (path): either an image path or a batch of image paths, and return the loaded image(s)
+
     Returns:
         Image or batch of image
     """
@@ -82,10 +87,11 @@ def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
 
 
 def default_load_labels(label_paths: Union[Path, list[Path]]) -> np.ndarray:
-    """
-    Function that loads image(s) from path(s)
+    """Function that loads image(s) from path(s).
+
     Args:
         data: either an image path or a batch of image paths, and return the loaded image(s)
+
     Returns:
         Segmentation mask or batch of segmentation masks
     """
