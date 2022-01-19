@@ -32,11 +32,15 @@ def main():
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("--output_path", "-o", type=Path, default=None,
                         help="Path to where the trimmed images will be saved.")
+    parser.add_argument("--nb_images_val", "-v", type=int, default=1, help="Number of images to save for validation.")
+    parser.add_argument("--merge_anomalies", "-m", action="store_true", help="Make blue defects red.")
     parser.add_argument("--debug", "-d", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
     data_path: Path = args.data_path
     output_path: Path = args.output_path if args.output_path else data_path.parent / "green_p_trimmed"
+    nb_val: int = args.nb_images_val
+    merge_anomalies: bool = args.merge_anomalies
     debug: bool = args.debug
 
     mask_path_list = list(data_path.rglob("*.png"))
@@ -84,6 +88,11 @@ def main():
     crop_max_y = np.amax(max_y_list)
     crop_min_y = np.amin(min_y_list)
 
+    # Split data between train and split
+    # This assumes that nb_val is somewhat small. It also assumes that bright and dark image pairs share the same name.
+    # And that no other image has the same name.
+    validation_names = list([img_path.name for img_path in img_path_list[:nb_val]])
+
     print(f"Now trimming images using the min and max y. Saving them in {output_path}")
     for i, img_path in enumerate(img_path_list, start=1):
         msg = f"Processing status: ({i}/{nb_imgs})     ({img_path})"
@@ -94,9 +103,14 @@ def main():
         img = img[crop_min_y:crop_max_y]
         mask = mask[crop_min_y:crop_max_y]
 
+        if merge_anomalies:
+            blue_mask = np.all(mask == [255, 0, 0], axis=-1)
+            mask[blue_mask] = [0, 0, 255]
+
         rel_path = img_path.relative_to(data_path)
-        output_img_path = output_path / rel_path.with_suffix(".jpg")
-        output_mask_path = output_path / rel_path.parent / (rel_path.stem + "_mask.png")
+        split = "Validation" if img_path.name in validation_names else "Train"
+        output_img_path = output_path / split / rel_path.with_suffix(".jpg")
+        output_mask_path = output_path / split / rel_path.parent / (rel_path.stem + "_mask.png")
         output_img_path.parent.mkdir(exist_ok=True, parents=True)
         cv2.imwrite(str(output_img_path), img)
         cv2.imwrite(str(output_mask_path), mask)
