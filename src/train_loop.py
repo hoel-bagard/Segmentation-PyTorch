@@ -24,7 +24,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
         train_dataloader: BatchGenerator of training data
         val_dataloader: BatchGenerator of validation data
     """
-    loss_fn = MSE_Loss(negative_loss_factor=1)
+    loss_fn = MSE_Loss(negative_loss_factor=50)
     optimizer = torch.optim.Adam(model.parameters(), lr=ModelConfig.LR, weight_decay=ModelConfig.REG_FACTOR)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
@@ -33,7 +33,7 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
         metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                         DataConfig.LABEL_MAP, max_batches=10, segmentation=True)
         tensorboard = TensorBoard(model, DataConfig.TB_DIR, ModelConfig.IMAGE_SIZES, metrics, DataConfig.LABEL_MAP,
-                                  segmentation=True, color_map=DataConfig.COLOR_MAP)
+                                  color_map=DataConfig.COLOR_MAP)
 
     best_loss = 1000
     last_checkpoint_epoch = 0

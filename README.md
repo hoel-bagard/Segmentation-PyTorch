@@ -14,8 +14,8 @@ git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodul
 
 ### Get some data and format it:
 
-You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You then need to create a classes.names next to the Train and Validation folder, with the names of the classes (one per line).
-
+You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). 
+You then need to create a classes.json next to the Train and Validation folder, with the names of the classes (one per line). (see [here](https://github.com/hoel-bagard/Segmentation-PyTorch/wiki/Dataset-Preprocessing) for an example)
 
 ## Config files
 In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.

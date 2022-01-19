@@ -1,11 +1,13 @@
 # from torch.utils.tensorboard import SummaryWriter  # noqa: F401  # Needs to be there to avoid segfaults
 import argparse
+import logging
+import sys
 import time
+from datetime import date
 from pathlib import Path
 from shutil import copy, rmtree
 
 import torch
-from torchsummary import summary
 
 import src.dataset.data_transformations as transforms
 from config.data_config import DataConfig
@@ -18,17 +20,40 @@ from src.dataset.default_loader import (
 )
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import clean_print
 from src.torch_utils.utils.misc import get_config_as_dict
+from src.torch_utils.utils.torch_summary import summary
 from src.train_loop import train
 
 
 def main():
-    parser = argparse.ArgumentParser("Segmentation project from PascalVOC labels")
+    parser = argparse.ArgumentParser(description="Segmentation training")
     parser.add_argument("--limit", default=None, type=int, help="Limits the number of apparition of each class")
     parser.add_argument("--load_data", action="store_true", help="Loads all the videos into RAM")
-    parser.add_argument("--name", type=str, help="Not used in the code. Use it to know what a train is when using ps.")
+    parser.add_argument("--name", type=str, default="Train",
+                        help="Use it to know what a train is when using ps. Also name of the logger.")
+    parser.add_argument("--verbose_level", "-v", choices=["debug", "info", "error"], default="info", type=str,
+                        help="Logger level.")
+
     args = parser.parse_args()
+
+    name: str = args.name
+    verbose_level: str = args.verbose_level
+
+    if DataConfig.USE_CHECKPOINT:
+        log_dir = Path("logs") / date.today().strftime("%Y-%m-%d")
+        logger = create_logger(name, log_dir)
+    else:
+        logger = create_logger(args.name)
+
+    match verbose_level:
+        case "debug":
+            logger.setLevel(logging.DEBUG)
+        case "info":
+            logger.setLevel(logging.INFO)
+        case "error":
+            logger.setLevel(logging.ERROR)
 
     if not DataConfig.KEEP_TB:
         while DataConfig.TB_DIR.exists():
@@ -92,13 +117,13 @@ def main():
                         ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                         data_preprocessing_fn=default_load_data if not args.load_data else None,
                         labels_preprocessing_fn=default_load_labels if not args.load_data else None,
-                        aug_pipeline=augmentation_pipeline,
-                        gpu_augmentation_pipeline=train_gpu_augmentation_pipeline,
+                        cpu_pipeline=augmentation_pipeline,
+                        gpu_pipeline=train_gpu_augmentation_pipeline,
                         shuffle=True) as train_dataloader, \
         BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
                        data_preprocessing_fn=default_load_data if not args.load_data else None,
                        labels_preprocessing_fn=default_load_labels if not args.load_data else None,
-                       gpu_augmentation_pipeline=transforms.compose_transformations(base_gpu_pipeline),
+                       gpu_pipeline=transforms.compose_transformations(base_gpu_pipeline),
                        shuffle=False) as val_dataloader:
 
         print(f"\nLoaded {len(train_dataloader)} train data and",
@@ -106,7 +131,15 @@ def main():
 
         print("Building model. . .", end="\r")
         model = build_model(ModelConfig.MODEL, DataConfig.OUTPUT_CLASSES, **get_config_as_dict(ModelConfig))
-        summary(model, train_dataloader.data_shape)
+
+        logger.info(f"{'-'*24} Starting train {'-'*24}")
+        logger.info("From command : " + ' '.join(sys.argv))
+        logger.info(f"Input shape: {train_dataloader.data_shape}")
+        logger.info("")
+        logger.info("Using model:")
+        for line in summary(model, train_dataloader.data_shape):
+            logger.info(line)
+        logger.info("")
 
         train(model, train_dataloader, val_dataloader)
 
