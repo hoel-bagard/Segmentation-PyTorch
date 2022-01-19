@@ -2,6 +2,7 @@
 ## Installation
 
 ### Dependencies
+python version >= 3.10\
 torch\
 torchsummary\
 tensorboard\
@@ -13,9 +14,27 @@ git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodul
 ```
 
 ### Get some data and format it:
+You can get some data on the NAS (I used the "20211224\_Latest" data).
 
-You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You then need to create a classes.names next to the Train and Validation folder, with the names of the classes (one per line).
+Place the data on your PC / server, and then use the following command to trim and rename the images:
+```bash
+python utils/green_preprocessing.py <path to data> -o <path to output folder> -m
+```
+For example:
+```bash
+python utils/green_preprocessing.py ../data/original_data/ -o ../data/preprocessed_data -m
+```
 
+Then tile the images with:
+```bash
+python utils/cut_images.py <path to preprocessed data> <path to output folder> -ts 512 512 -s 256 256
+```
+For example:
+```bash
+python utils/cut_images.py ../data/preprocessed_data/ ../data/tiled_data -ts 512 512 -s 256 256
+```
+
+Finally, you then need to create a classes.names next to the Train and Validation folder, with the names of the classes (one per line).
 
 ## Config files
 In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.
