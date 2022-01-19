@@ -20,7 +20,7 @@ from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.misc import clean_print
 from src.torch_utils.utils.misc import get_config_as_dict
-from src.train import train
+from src.train_loop import train
 
 
 def main():

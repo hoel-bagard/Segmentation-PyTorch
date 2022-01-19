@@ -87,9 +87,9 @@ def prepare_data(image_path: str, label_path: str, label_map: Dict) -> Tuple[np.
 
 def parse_voc2007_annotation(xml_path: str, label_map: Dict) -> np.ndarray:
     root: ET.Element = ET.parse(xml_path).getroot()
-    objects: ET.Element = root.findall("object")
+    objects: list[ET.Element] = root.findall("object")
 
-    labels = []
+    labels: list[list[int | np.ndarray]] = []
     for item in objects:
         difficult = int(item.find("difficult").text)
         if difficult:
