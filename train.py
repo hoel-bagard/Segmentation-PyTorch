@@ -94,33 +94,42 @@ def main():
     # GPU pipeline used by both validation and train
     base_gpu_pipeline = (
         transforms.to_tensor(),
-        transforms.normalize(labels_too=True),
+        transforms.normalize(labels_too=False),
     )
     train_gpu_augmentation_pipeline = transforms.compose_transformations((
         *base_gpu_pipeline,
         transforms.noise()
     ))
 
-    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train", get_mask_path_fn=get_mask_path,
-                                              limit=args.limit, load_data=args.load_data,
+    train_data, train_labels = default_loader(DataConfig.DATA_PATH / "Train",
+                                              get_mask_path_fn=get_mask_path,
+                                              limit=args.limit,
+                                              load_data=args.load_data,
                                               data_preprocessing_fn=default_load_data if args.load_data else None,
                                               labels_preprocessing_fn=default_load_labels if args.load_data else None)
     clean_print("Train data loaded")
 
-    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation", get_mask_path_fn=get_mask_path,
-                                          limit=args.limit, load_data=args.load_data,
+    val_data, val_labels = default_loader(DataConfig.DATA_PATH / "Validation",
+                                          get_mask_path_fn=get_mask_path,
+                                          limit=args.limit,
+                                          load_data=args.load_data,
                                           data_preprocessing_fn=default_load_data if args.load_data else None,
                                           labels_preprocessing_fn=default_load_labels if args.load_data else None)
     clean_print("Validation data loaded")
 
-    with BatchGenerator(train_data, train_labels,
-                        ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
+    with BatchGenerator(train_data,
+                        train_labels,
+                        ModelConfig.BATCH_SIZE,
+                        nb_workers=DataConfig.NB_WORKERS,
                         data_preprocessing_fn=default_load_data if not args.load_data else None,
                         labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                         cpu_pipeline=augmentation_pipeline,
                         gpu_pipeline=train_gpu_augmentation_pipeline,
                         shuffle=True) as train_dataloader, \
-        BatchGenerator(val_data, val_labels, ModelConfig.BATCH_SIZE, nb_workers=DataConfig.NB_WORKERS,
+        BatchGenerator(val_data,
+                       val_labels,
+                       ModelConfig.BATCH_SIZE,
+                       nb_workers=DataConfig.NB_WORKERS,
                        data_preprocessing_fn=default_load_data if not args.load_data else None,
                        labels_preprocessing_fn=default_load_labels if not args.load_data else None,
                        gpu_pipeline=transforms.compose_transformations(base_gpu_pipeline),

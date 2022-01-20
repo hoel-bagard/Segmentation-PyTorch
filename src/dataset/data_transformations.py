@@ -1,11 +1,11 @@
 import random
-from typing import Callable, Union
+from typing import Callable
 
 import cv2
 import numpy as np
 import torch
 
-NumpyOrTensorType = Union[torch.Tensor, np.ndarray]  # TODO  replace with |  when 3.10
+NumpyOrTensorType = torch.Tensor | np.ndarray
 
 
 def compose_transformations(transformations: list[Callable[[NumpyOrTensorType, NumpyOrTensorType],
@@ -81,7 +81,7 @@ def to_tensor():
     return to_tensor_fn
 
 
-def normalize(labels_too: bool = True):
+def normalize(labels_too: bool = False):
     """Normalize a batch of images so that its values are in [0, 1]."""
     def normalize_fn(imgs: torch.Tensor, labels: torch.Tensor):
         return imgs/255.0, labels/255.0 if labels_too else labels
