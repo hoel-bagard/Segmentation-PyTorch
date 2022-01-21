@@ -1,8 +1,6 @@
 import argparse
-import logging
 import sys
 import time
-from datetime import date
 from pathlib import Path
 from shutil import copy, rmtree
 
@@ -24,6 +22,7 @@ from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import clean_print, get_dataclass_as_dict
+from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.torch_summary import summary
 from src.train_loop import train
 
@@ -45,47 +44,12 @@ def main():
     data_config = get_data_config()
     model_config = get_model_config()
 
-    if data_config.USE_CHECKPOINT:
-        log_dir = Path("logs") / date.today().strftime("%Y-%m-%d")
-        logger = create_logger(name, log_dir)
-    else:
-        logger = create_logger(args.name)
+    log_dir = data_config.CHECKPOINTS_DIR / "print_logs" if data_config.USE_CHECKPOINTS else None
+    logger = create_logger(name, log_dir=log_dir, verbose_level=verbose_level)
 
-    match verbose_level:
-        case "debug":
-            logger.setLevel(logging.DEBUG)
-        case "info":
-            logger.setLevel(logging.INFO)
-        case "error":
-            logger.setLevel(logging.ERROR)
-
-    if not data_config.KEEP_TB:
-        while data_config.TB_DIR.exists():
-            rmtree(data_config.TB_DIR, ignore_errors=True)
-            time.sleep(0.5)
-    data_config.TB_DIR.mkdir(parents=True, exist_ok=False)
-
-    if data_config.USE_CHECKPOINT:
-        if not data_config.KEEP_CHECKPOINTS:
-            while data_config.CHECKPOINT_DIR.exists():
-                rmtree(data_config.CHECKPOINT_DIR, ignore_errors=True)
-                time.sleep(0.5)
-        try:
-            data_config.CHECKPOINT_DIR.mkdir(parents=True, exist_ok=False)
-        except FileExistsError:
-            logger.info(f"The checkpoint dir {data_config.CHECKPOINT_DIR} already exists")
-            return -1
-
-        # Makes a copy of all the code (and config) so that the checkpoints are easy to load and use
-        output_folder = data_config.CHECKPOINT_DIR / "Segmentation-PyTorch"
-        for filepath in list(Path(".").glob("**/*.py")):
-            destination_path = output_folder / filepath
-            destination_path.parent.mkdir(parents=True, exist_ok=True)
-            copy(filepath, destination_path)
-        misc_files = ["README.md", "requirements.txt", "setup.cfg", ".gitignore"]
-        for misc_file in misc_files:
-            copy(misc_file, output_folder / misc_file)
-        logger.info("Finished copying files")
+    prepare_folders(data_config.TB_DIR if data_config.USE_TB else None,
+                    data_config.CHECKPOINTS_DIR if data_config.USE_CHECKPOINTS else None)
+    logger.info("Finished preparing tensorboard and checkpoints folders.")
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
