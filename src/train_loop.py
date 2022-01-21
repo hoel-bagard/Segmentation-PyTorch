@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 
 
-from config.data_config import DataConfig
-from config.model_config import ModelConfig
+from config.data_config import get_data_config
+from config.model_config import get_model_config
 from src.loss import MSE_Loss
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
@@ -24,34 +24,37 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
         train_dataloader: BatchGenerator of training data
         val_dataloader: BatchGenerator of validation data
     """
-    loss_fn = MSE_Loss(negative_loss_factor=50)
-    optimizer = torch.optim.Adam(model.parameters(), lr=ModelConfig.LR, weight_decay=ModelConfig.REG_FACTOR)
-    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=ModelConfig.LR_DECAY)
+    data_config = get_data_config()
+    model_config = get_model_config()
 
-    if DataConfig.USE_TB:
+    loss_fn = MSE_Loss(negative_loss_factor=50)
+    optimizer = torch.optim.Adam(model.parameters(), lr=model_config.LR, weight_decay=model_config.REG_FACTOR)
+    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
+
+    if data_config.USE_TB:
         metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
-                                        DataConfig.LABEL_MAP, max_batches=10, segmentation=True)
-        tensorboard = TensorBoard(model, DataConfig.TB_DIR, ModelConfig.IMAGE_SIZES, metrics, DataConfig.LABEL_MAP,
-                                  color_map=DataConfig.COLOR_MAP)
+                                        data_config.LABEL_MAP, max_batches=10, segmentation=True)
+        tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics, data_config.LABEL_MAP,
+                                  color_map=data_config.COLOR_MAP)
 
     best_loss = 1000
     last_checkpoint_epoch = 0
     train_start_time = time.time()
 
     try:
-        for epoch in range(ModelConfig.MAX_EPOCHS):
+        for epoch in range(model_config.MAX_EPOCHS):
             epoch_start_time = time.perf_counter()
-            print(f"\nEpoch {epoch}/{ModelConfig.MAX_EPOCHS}")
+            print(f"\nEpoch {epoch}/{model_config.MAX_EPOCHS}")
 
             epoch_loss = trainer.train_epoch()
-            if DataConfig.USE_TB:
+            if data_config.USE_TB:
                 tensorboard.write_loss(epoch, epoch_loss)
                 tensorboard.write_lr(epoch, scheduler.get_last_lr()[0])
 
-            if (epoch_loss < best_loss and DataConfig.USE_CHECKPOINT and epoch >= DataConfig.RECORD_START
-                    and (epoch - last_checkpoint_epoch) >= DataConfig.CHECKPT_SAVE_FREQ):
-                save_path = os.path.join(DataConfig.CHECKPOINT_DIR, f"train_{epoch}.pt")
+            if (epoch_loss < best_loss and data_config.USE_CHECKPOINT and epoch >= data_config.RECORD_START
+                    and (epoch - last_checkpoint_epoch) >= data_config.CHECKPT_SAVE_FREQ):
+                save_path = os.path.join(data_config.CHECKPOINT_DIR, f"train_{epoch}.pt")
                 print(f"\nLoss improved from {best_loss:.5e} to {epoch_loss:.5e},"
                       f"saving model to {save_path}", end='\r')
                 best_loss, last_checkpoint_epoch = epoch_loss, epoch
@@ -60,12 +63,12 @@ def train(model: nn.Module, train_dataloader: BatchGenerator, val_dataloader: Ba
             print(f"\nEpoch loss: {epoch_loss:.5e}  -  Took {time.perf_counter() - epoch_start_time:.5f}s")
 
             # Validation and other metrics
-            if epoch % DataConfig.VAL_FREQ == 0 and epoch >= DataConfig.RECORD_START:
+            if epoch % data_config.VAL_FREQ == 0 and epoch >= data_config.RECORD_START:
                 with torch.no_grad():
                     validation_start_time = time.perf_counter()
                     epoch_loss = trainer.val_epoch()
 
-                    if DataConfig.USE_TB:
+                    if data_config.USE_TB:
                         print("\nStarting to compute TensorBoard metrics", end="\r", flush=True)
                         tensorboard.write_weights_grad(epoch)
                         tensorboard.write_loss(epoch, epoch_loss, mode="Validation")

@@ -77,7 +77,7 @@ def to_tensor():
 
         imgs = imgs.transpose((0, 3, 1, 2))
         labels = labels.transpose((0, 3, 1, 2))
-        return torch.from_numpy(imgs).to(device), torch.from_numpy(labels).to(device)
+        return torch.from_numpy(imgs).float().to(device), torch.from_numpy(labels).to(device)
     return to_tensor_fn
 
 

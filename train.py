@@ -23,8 +23,7 @@ from src.dataset.default_loader import (
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.logger import create_logger
-from src.torch_utils.utils.misc import clean_print
-from src.torch_utils.utils.misc import get_config_as_dict
+from src.torch_utils.utils.misc import clean_print, get_dataclass_as_dict
 from src.torch_utils.utils.torch_summary import summary
 from src.train_loop import train
 
@@ -90,8 +89,6 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-
-
     train_data, train_labels = default_loader(data_config.DATA_PATH / "Train",
                                               get_mask_path_fn=get_mask_path,
                                               limit=args.limit,
@@ -119,7 +116,6 @@ def main():
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
                                         border_mode=cv2.BORDER_CONSTANT, value=0),
         # albumentations.GridDistortion(p=0.5),
-        # albumentations.ToFloat()
     ]))
 
     common_pipeline = albumentation_wrapper(albumentations.Compose([
@@ -151,7 +147,7 @@ def main():
               f"{len(val_dataloader)} validation data", flush=True)
 
         print("Building model. . .", end="\r")
-        model = build_model(model_config.MODEL, data_config.OUTPUT_CLASSES, **get_config_as_dict(model_config))
+        model = build_model(model_config.MODEL, data_config.OUTPUT_CLASSES, **get_dataclass_as_dict(model_config))
 
         logger.info(f"{'-'*24} Starting train {'-'*24}")
         logger.info("From command : " + ' '.join(sys.argv))
