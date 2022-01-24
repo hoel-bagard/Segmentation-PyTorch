@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+import traceback
 from subprocess import CalledProcessError
 
 import albumentations
@@ -47,12 +48,11 @@ def main():
     data_config = get_data_config()
     model_config = get_model_config()
 
-    log_dir = data_config.CHECKPOINTS_DIR / "print_logs" if data_config.USE_CHECKPOINTS else None
-    logger = create_logger(name, log_dir=log_dir, verbose_level=verbose_level)
-
     prepare_folders(data_config.TB_DIR if data_config.USE_TB else None,
                     data_config.CHECKPOINTS_DIR if data_config.USE_CHECKPOINTS else None,
                     repo_name="Segmentation-PyTorch")
+    log_dir = data_config.CHECKPOINTS_DIR / "print_logs" if data_config.USE_CHECKPOINTS else None
+    logger = create_logger(name, log_dir=log_dir, verbose_level=verbose_level)
     logger.info("Finished preparing tensorboard and checkpoints folders.")
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
@@ -143,31 +143,34 @@ def main():
         try:
             for epoch in range(model_config.MAX_EPOCHS):
                 epoch_start_time = time.perf_counter()
-                print(f"\nEpoch {epoch}/{model_config.MAX_EPOCHS}")
+                print()  # logger doesn't handle \n super well
+                logger.info(f"Epoch {epoch}/{model_config.MAX_EPOCHS}")
 
                 epoch_loss = trainer.train_epoch()
                 if data_config.USE_TB:
                     tensorboard.write_loss(epoch, epoch_loss)
                     tensorboard.write_lr(epoch, scheduler.get_last_lr()[0])
 
-                if (epoch_loss < best_loss and data_config.USE_CHECKPOINT and epoch >= data_config.RECORD_START
+                if (epoch_loss < best_loss and data_config.USE_CHECKPOINTS and epoch >= data_config.RECORD_START
                         and (epoch - last_checkpoint_epoch) >= data_config.CHECKPT_SAVE_FREQ):
                     save_path = os.path.join(data_config.CHECKPOINT_DIR, f"train_{epoch}.pt")
-                    print(f"\nLoss improved from {best_loss:.5e} to {epoch_loss:.5e},"
-                          f"saving model to {save_path}", end='\r')
+                    logger.info(f"\nLoss improved from {best_loss:.5e} to {epoch_loss:.5e},"
+                                f"saving model to {save_path}")
                     best_loss, last_checkpoint_epoch = epoch_loss, epoch
                     torch.save(model.state_dict(), save_path)
 
-                print(f"\nEpoch loss: {epoch_loss:.5e}  -  Took {time.perf_counter() - epoch_start_time:.5f}s")
+                logger.info(f"Epoch loss: {epoch_loss:.5e}  -  Took {time.perf_counter() - epoch_start_time:.5f}s")
 
                 # Validation and other metrics
                 if epoch % data_config.VAL_FREQ == 0 and epoch >= data_config.RECORD_START:
+                    # if data_config.USE_TB:
+                    #     tensorboard.write_weights_grad(epoch)
                     with torch.no_grad():
-                        val_start_time = time.perf_counter()
+                        validation_start_time = time.perf_counter()
                         epoch_loss = trainer.val_epoch()
 
                         if data_config.USE_TB:
-                            print("\nStarting to compute TensorBoard metrics", end="\r", flush=True)
+                            print("Starting to compute TensorBoard metrics", end="\r", flush=True)
                             tensorboard.write_weights_grad(epoch)
                             tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
 
@@ -181,22 +184,28 @@ def main():
                             tensorboard.write_metrics(epoch, mode="Validation")
                             val_acc = metrics.get_avg_acc()
 
-                            print(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}", end='\r')
+                            logger.info(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}")
 
-                        print(f"\nValidation loss: {epoch_loss:.5e}  -  Took {time.time() - val_start_time:.5f}s")
+                        logger.info(f"Validation loss: {epoch_loss:.5e}  -  "
+                                    f"Took {time.perf_counter() - validation_start_time:.5f}s")
                 scheduler.step()
         except KeyboardInterrupt:
             print("\n")
+        except Exception as error:
+            logger.error(''.join(traceback.format_exception(*sys.exc_info())))
+            raise error
 
-        train_stop_time = time.time()
-        print("Finished Training"
-              f"\n\tTraining time : {train_stop_time - train_start_time:.03f}s")
+    if data_config.USE_TB:
         tensorboard.close_writers()
-        try:
-            memory_peak, gpu_memory = resource_usage()
-            print(f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}")
-        except CalledProcessError:
-            pass
+
+    train_stop_time = time.time()
+    end_msg = f"Finished Training\n\tTraining time : {train_stop_time - train_start_time:.03f}s"
+    try:
+        memory_peak, gpu_memory = resource_usage()
+        end_msg += f"\n\tRAM peak : {memory_peak // 1024} MB\n\tVRAM usage : {gpu_memory}"
+    except CalledProcessError:
+        pass
+    logger.info(end_msg)
 
 
 if __name__ == "__main__":
