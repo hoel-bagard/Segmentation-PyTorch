@@ -8,6 +8,7 @@ from subprocess import CalledProcessError
 import albumentations
 import cv2
 import torch
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import src.dataset.data_transformations as transforms
 from config.data_config import get_data_config
@@ -126,10 +127,15 @@ def main():
             logger.info(line)
         logger.info("")
 
-        loss_fn = MSE_Loss(negative_loss_factor=50)
+        loss_fn = MSE_Loss(negative_loss_factor=10)
         optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
+
+        # TODO: https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/5
+        #       It seems like the scheduler.step() should be done at each step for that scheduler.
+        # scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=5e-6)
+        # TODO: Try this https://github.com/rwightman/pytorch-image-models/blob/master/timm/scheduler/cosine_lr.py
 
         if data_config.USE_TB:
             metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,

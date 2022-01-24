@@ -3,10 +3,12 @@ from typing import Optional
 
 import torch
 
+from .convnext_unet import UConvNeXt
 from .unet import UDarkNet
 
 
 class ModelHelper:
+    UConvNeXt = UConvNeXt
     UDarkNet = UDarkNet
 
 

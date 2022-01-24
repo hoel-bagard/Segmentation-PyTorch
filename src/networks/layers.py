@@ -1,3 +1,6 @@
+from typing import Callable, Optional
+from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
@@ -5,7 +8,7 @@ import torch.nn.functional as F  # noqa: N812
 
 class DarknetConv(torch.nn.Module):
     def __init__(self, in_filters, out_filters, size, stride=1):
-        super(DarknetConv, self).__init__()
+        super().__init__()
 
         # This is a quick fix, need to work on padding in PyTorch
         padding = (size - 1) // 2
@@ -24,7 +27,7 @@ class DarknetConv(torch.nn.Module):
 
 class DarknetResidualBlock(nn.Module):
     def __init__(self, filters):
-        super(DarknetResidualBlock, self).__init__()
+        super().__init__()
         self.darknet_conv1 = DarknetConv(filters, filters//2, 1)
         self.darknet_conv2 = DarknetConv(filters//2, filters, 3)
 
@@ -37,7 +40,7 @@ class DarknetResidualBlock(nn.Module):
 
 class DarknetBlock(nn.Module):
     def __init__(self, in_filters, out_filters, blocks):
-        super(DarknetBlock, self).__init__()
+        super().__init__()
         self.dark_conv = DarknetConv(in_filters, out_filters, 3, stride=2)
         self.dark_res_blocks = nn.Sequential(*[DarknetResidualBlock(out_filters) for _ in range(blocks)])
 
@@ -49,11 +52,14 @@ class DarknetBlock(nn.Module):
 
 
 class SkipConnection(nn.Module):
-    def __init__(self, in_filters, out_filters):
-        super(SkipConnection, self).__init__()
-        self.conv = nn.Conv2d(in_filters, out_filters, kernel_size=1,
-                              stride=1, padding=0, bias=False)
-        self.batch_norm = nn.BatchNorm2d(out_filters)
+    def __init__(self, in_filters: int,
+                 out_filters: int,
+                 use_bn: bool = True,
+                 activation_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
+        super().__init__()
+        self.conv = nn.Conv2d(in_filters, out_filters, kernel_size=1, stride=1, padding=0, bias=False)
+        self.activation_fn = activation_fn if activation_fn else partial(F.leaky_relu, negative_slope=0.1)
+        self.batch_norm = nn.BatchNorm2d(out_filters) if use_bn else None
 
     def forward(self, input_op, skip_op):
 
@@ -63,22 +69,30 @@ class SkipConnection(nn.Module):
         # input_op = F.pad(input_op, [x_padding // 2, x_padding - x_padding // 2,
         #                             y_padding // 2, y_padding - y_padding // 2])
 
-        x = torch.cat((input_op, skip_op), dim=-3)  # Channels first in PyTorch
+        x = torch.cat((input_op, skip_op), dim=-3)
         x = self.conv(x)
-        x = self.batch_norm(x)
-        x = F.leaky_relu(x, 0.1)
+        if self.batch_norm:
+            x = self.batch_norm(x)
+        x = self.activation_fn(x)
         return x
 
 
 class ConvTranspose(torch.nn.Module):
-    def __init__(self, in_filters, out_filters, size, stride=2, padding=1):
-        super(ConvTranspose, self).__init__()
+    def __init__(self, in_filters: int, out_filters: int,
+                 size: int | tuple[int, int],
+                 stride: int | tuple[int, int] = 2,
+                 padding: int | tuple[int, int] = 1,
+                 use_bn: bool = True,
+                 activation_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
+        super().__init__()
         self.conv_transpose = nn.ConvTranspose2d(in_filters, out_filters, kernel_size=size,
                                                  stride=stride, padding=padding, bias=False)
-        self.batch_norm = nn.BatchNorm2d(out_filters)
+        self.activation_fn = activation_fn if activation_fn else partial(F.leaky_relu, negative_slope=0.1)
+        self.batch_norm = nn.BatchNorm2d(out_filters) if use_bn else None
 
     def forward(self, x, output_size=None):
         x = self.conv_transpose(x, output_size=output_size)
-        x = self.batch_norm(x)
-        x = F.leaky_relu(x, 0.1)
+        if self.batch_norm:
+            x = self.batch_norm(x)
+        x = self.activation_fn(x)
         return x

@@ -18,6 +18,7 @@ class ModelConfig:
     # Network part
     MODEL = ModelHelper.UDarkNet
 
+    # The values bellow are used for the UNet (CHANNELS can be used for the ConvNeXt too if len == 4)
     CHANNELS: list[int] = field(default_factory=lambda: [3, 32, 64, 64, 128, 256])
     SIZES: list[int | tuple[int, int]]  = field(default_factory=lambda: [5, 3, 3, 3, 3, 3])   # Kernel sizes
     STRIDES: list[int | tuple[int, int]]  = field(default_factory=lambda: [5, 2, 2, 2, 2, 2])
