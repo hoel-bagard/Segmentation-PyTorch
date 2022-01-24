@@ -10,7 +10,7 @@ class ModelConfig:
     MAX_EPOCHS = 500
     LR = 1e-3
     LR_DECAY = 0.998
-    REG_FACTOR = 0.005  # Regularization factor
+    WEIGHT_DECAY = 1e-2   # Weight decay for the optimizer
 
     # Data processing
     IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (512, 512))  # All images will be resized to this size

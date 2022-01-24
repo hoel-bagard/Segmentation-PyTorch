@@ -127,7 +127,7 @@ def main():
         logger.info("")
 
         loss_fn = MSE_Loss(negative_loss_factor=50)
-        optimizer = torch.optim.Adam(model.parameters(), lr=model_config.LR, weight_decay=model_config.REG_FACTOR)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
 
