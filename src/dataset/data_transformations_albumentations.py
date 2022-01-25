@@ -12,20 +12,15 @@ from src.torch_utils.utils.misc import show_img
 
 def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.ndarray, np.ndarray],
                                                                          tuple[np.ndarray, np.ndarray]]:
-    """Returns a function that applies the albumentation transforms to a batch.
-
-    Assumes that there is a resize within the albumentations pipeline
-    (or that the images had the correct size to begin with)
-    """
-    model_config = get_model_config()
-    img_sizes = model_config.IMAGE_SIZES
+    """Returns a function that applies the albumentation transforms to a batch."""
     data_config = get_data_config()
     nb_classes = data_config.OUTPUT_CLASSES
 
     def albumentation_transform_fn(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Apply transformations on a batch of data."""
-        out_imgs = np.empty((imgs.shape[0], *img_sizes, 3), dtype=np.uint8)
-        out_labels = np.empty((imgs.shape[0], *img_sizes, nb_classes), dtype=np.uint8)
+        out_sizes = transform(image=imgs[0])["image"].shape[:2]
+        out_imgs = np.empty((imgs.shape[0], *out_sizes, 3), dtype=np.uint8)
+        out_labels = np.empty((imgs.shape[0], *out_sizes, nb_classes), dtype=np.uint8)
         for i, (img, label) in enumerate(zip(imgs, labels)):
             transformed = transform(image=img, mask=label)
             out_imgs[i] = transformed["image"]
