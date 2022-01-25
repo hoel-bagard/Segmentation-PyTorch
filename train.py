@@ -159,7 +159,7 @@ def main():
 
                 if (epoch_loss < best_loss and data_config.USE_CHECKPOINTS and epoch >= data_config.RECORD_START
                         and (epoch - last_checkpoint_epoch) >= data_config.CHECKPT_SAVE_FREQ):
-                    save_path = os.path.join(data_config.CHECKPOINT_DIR, f"train_{epoch}.pt")
+                    save_path = data_config.CHECKPOINTS_DIR / f"train_{epoch}.pt"
                     logger.info(f"\nLoss improved from {best_loss:.5e} to {epoch_loss:.5e},"
                                 f"saving model to {save_path}")
                     best_loss, last_checkpoint_epoch = epoch_loss, epoch
