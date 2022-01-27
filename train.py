@@ -2,6 +2,7 @@ import argparse
 import sys
 import time
 import traceback
+from functools import partial
 from subprocess import CalledProcessError
 
 import albumentations
@@ -23,6 +24,7 @@ from src.loss import MSE_Loss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
+from src.torch_utils.utils.draw import denormalize_np
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import clean_print, get_dataclass_as_dict
 from src.torch_utils.utils.prepare_folders import prepare_folders
@@ -77,17 +79,20 @@ def main():
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.HorizontalFlip(p=0.5),
         albumentations.VerticalFlip(p=0.5),
-        albumentations.RandomRotate90(p=0.2),
+        # albumentations.RandomRotate90(p=0.2),
         # albumentations.CLAHE(),
-        albumentations.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.2),
-        albumentations.HueSaturationValue(hue_shift_limit=5, sat_shift_limit=30, val_shift_limit=5),
+        albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
+        albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
+        albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
+                                        border_mode=cv2.BORDER_CONSTANT, value=0),
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
                                         border_mode=cv2.BORDER_CONSTANT, value=0),
         # albumentations.GridDistortion(p=0.5),
     ]))
 
+    mean, std = (0.041, 0.129, 0.03), (0.054, 0.104, 0.046)
     common_pipeline = albumentation_wrapper(albumentations.Compose([
-        albumentations.Normalize(mean=(0.041, 0.129, 0.03), std=(0.054, 0.104, 0.046), max_pixel_value=255.0, p=1.0),
+        albumentations.Normalize(mean=mean, std=std, max_pixel_value=255.0, p=1.0),
         albumentations.Resize(*model_config.IMAGE_SIZES, interpolation=cv2.INTER_LINEAR)
     ]))
     train_pipeline = transforms.compose_transformations((augmentation_pipeline, common_pipeline))
@@ -129,18 +134,16 @@ def main():
         loss_fn = MSE_Loss(negative_loss_factor=10)
         optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
-
-        # TODO: https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/5
-        #       It seems like the scheduler.step() should be done at each step for that scheduler.
-        # scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=5e-6)
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
+        scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=5e-6)
         # TODO: Try this https://github.com/rwightman/pytorch-image-models/blob/master/timm/scheduler/cosine_lr.py
 
         if data_config.USE_TB:
             metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                             data_config.LABEL_MAP, max_batches=10, segmentation=True)
             tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics,
-                                      data_config.LABEL_MAP, color_map=data_config.COLOR_MAP)
+                                      data_config.LABEL_MAP, color_map=data_config.COLOR_MAP,
+                                      denormalize_img_fn=partial(denormalize_np, mean=mean, std=std))
 
         best_loss = 1000
         last_checkpoint_epoch = 0
