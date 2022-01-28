@@ -29,8 +29,8 @@ class DiceBCELoss(nn.Module):
 
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         # flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        inputs = inputs.contiguous().view(-1).to(torch.float32)
+        targets = targets.contiguous().view(-1).to(torch.float32)
 
         intersection = (inputs * targets).sum()
         dice_loss = 1 - (2.*intersection + self.smooth)/(inputs.sum() + targets.sum() + self.smooth)
