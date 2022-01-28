@@ -20,7 +20,7 @@ from src.dataset.default_loader import (
     default_load_labels,
     default_loader
 )
-from src.loss import MSE_Loss
+from src.losses import DiceBCELoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
@@ -84,9 +84,7 @@ def main():
         albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
         albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
-                                        border_mode=cv2.BORDER_CONSTANT, value=0),
-        albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
-                                        border_mode=cv2.BORDER_CONSTANT, value=0),
+                                        border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0),
         # albumentations.GridDistortion(p=0.5),
     ]))
 
@@ -131,7 +129,7 @@ def main():
             logger.info(line)
         logger.info("")
 
-        loss_fn = MSE_Loss(negative_loss_factor=10)
+        loss_fn = DiceBCELoss()
         optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
