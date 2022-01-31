@@ -26,7 +26,7 @@ from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.draw import denormalize_np
 from src.torch_utils.utils.logger import create_logger
-from src.torch_utils.utils.misc import clean_print, get_dataclass_as_dict
+from src.torch_utils.utils.misc import get_dataclass_as_dict
 from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.ressource_usage import resource_usage
 from src.torch_utils.utils.tensorboard import TensorBoard
@@ -65,7 +65,7 @@ def main():
                                               load_data=args.load_data,
                                               data_preprocessing_fn=default_load_data if args.load_data else None,
                                               labels_preprocessing_fn=default_load_labels if args.load_data else None)
-    clean_print("Train data loaded")
+    logger.info("Train data loaded")
 
     val_data, val_labels = default_loader(data_config.DATA_PATH / "Validation",
                                           get_mask_path_fn=get_mask_path,
@@ -73,7 +73,7 @@ def main():
                                           load_data=args.load_data,
                                           data_preprocessing_fn=default_load_data if args.load_data else None,
                                           labels_preprocessing_fn=default_load_labels if args.load_data else None)
-    clean_print("Validation data loaded")
+    logger.info("Validation data loaded")
 
     # Data augmentation done on cpu.
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
