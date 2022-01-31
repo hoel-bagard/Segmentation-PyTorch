@@ -1,15 +1,13 @@
 from pathlib import Path
 from typing import (
     Callable,
-    Optional,
-    Union
+    Optional
 )
 
 import cv2
 import numpy as np
 
-from config.data_config import DataConfig
-from config.model_config import ModelConfig
+from config.data_config import get_data_config
 from src.torch_utils.utils.misc import clean_print
 
 
@@ -35,10 +33,10 @@ def default_loader(data_path: Path,
         labels_preprocessing_fn (callable, optional): Function used to load labels from their paths.
 
     Return:
-        numpy array containing the paths/images and the associated label
+        numpy arrays containing the paths/images and the associated label
     """
-    data: list[Union[np.ndarray, Path]] = []
-    labels: list[Union[np.ndarray, Path]] = []
+    data: list[np.ndarray | Path] = []
+    labels: list[np.ndarray | Path] = []
 
     exts = [".jpg", ".png", ".bmp"]
     file_list = list([p for p in data_path.rglob('*') if p.suffix in exts
@@ -61,22 +59,18 @@ def default_loader(data_path: Path,
     return np.asarray(data), np.asarray(labels)
 
 
-def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
+def default_load_data(data: Path | list[Path]) -> np.ndarray:
     """Function that loads image(s) from path(s).
 
     Args:
-        data (path): either an image path or a batch of image paths, and return the loaded image(s)
+        data (Path, list[Path]): Either an image path or a batch of image paths, and return the loaded image(s)
 
     Returns:
-        Image or batch of image
+        Image or batch of images in RGB format.
     """
     if isinstance(data, Path):
         img = cv2.imread(str(data))
-        width, height, _ = img.shape
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        if (width, height) != ModelConfig.IMAGE_SIZES:
-            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_AREA)
 
         return img
     else:
@@ -86,32 +80,29 @@ def default_load_data(data: Union[Path, list[Path]]) -> np.ndarray:
         return np.asarray(imgs)
 
 
-def default_load_labels(label_paths: Union[Path, list[Path]]) -> np.ndarray:
-    """Function that loads image(s) from path(s).
+def default_load_labels(label_paths: Path | list[Path]) -> np.ndarray:
+    """Function that loads segmentation mask(s) from path(s).
 
     Args:
-        data: either an image path or a batch of image paths, and return the loaded image(s)
+        data (Path, list[Path]): Either a mask path or a batch of mask paths, and return the loaded mask(s)
 
     Returns:
-        Segmentation mask or batch of segmentation masks
+        Segmentation mask or batch of segmentation masks.
     """
     if isinstance(label_paths, Path):
-        img = cv2.imread(str(label_paths))
-
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        width, height, _ = img.shape
-
-        if (width, height) != ModelConfig.IMAGE_SIZES:
-            img = cv2.resize(img, ModelConfig.IMAGE_SIZES, interpolation=cv2.INTER_NEAREST)
+        mask = cv2.imread(str(label_paths))
+        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+        height, width, _ = mask.shape
 
         # Transform the mask into a one hot mask
-        one_hot_mask = np.zeros((*ModelConfig.IMAGE_SIZES, DataConfig.OUTPUT_CLASSES))
-        for key in range(len(DataConfig.COLOR_MAP)):
-            one_hot_mask[:, :, key][(img == DataConfig.COLOR_MAP[key]).all(axis=-1)] = 1
+        data_config = get_data_config()
+        one_hot_mask = np.zeros((width, height, data_config.OUTPUT_CLASSES))
+        for key in range(len(data_config.COLOR_MAP)):
+            one_hot_mask[:, :, key][(mask == data_config.COLOR_MAP[key]).all(axis=-1)] = 1
 
         # Assert to check that each pixel of the segmentation mask has a class. Not used for performance reasons.
-        assert np.sum(one_hot_mask) == np.prod(ModelConfig.IMAGE_SIZES), (f"At least one pixel has no class"
-                                                                          f"in image {str(label_paths)}")
+        # assert np.sum(one_hot_mask) == np.prod(ModelConfig.IMAGE_SIZES), (f"At least one pixel has no class"
+        #                                                                   f"in image {str(label_paths)}")
 
         return one_hot_mask
     else:
