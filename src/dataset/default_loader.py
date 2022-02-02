@@ -16,7 +16,8 @@ def default_loader(data_path: Path,
                    limit: int = None,
                    load_data: bool = False,
                    data_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
-                   labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None
+                   labels_preprocessing_fn: Optional[Callable[[Path], np.ndarray]] = None,
+                   verbose: bool = True
                    ) -> tuple[np.ndarray, np.ndarray]:
     """Loads image and masks for image segmentation.
 
@@ -31,6 +32,7 @@ def default_loader(data_path: Path,
                           The images are loaded using the preprocessing functions (they must be provided)
         data_preprocessing_fn (callable, optional): Function used to load data from their paths.
         labels_preprocessing_fn (callable, optional): Function used to load labels from their paths.
+        verbose (bool): Verbose mode, print loading progress.
 
     Return:
         numpy arrays containing the paths/images and the associated label
@@ -43,7 +45,8 @@ def default_loader(data_path: Path,
                       and "seg" not in str(p) and "mask" not in str(p)])
     nb_imgs = len(file_list)
     for i, img_path in enumerate(file_list, start=1):
-        clean_print(f"Processing image {img_path.name}    ({i}/{nb_imgs})", end="\r" if i != nb_imgs else "\n")
+        if verbose:
+            clean_print(f"Processing image {img_path.name}    ({i}/{nb_imgs})", end="\r" if i != nb_imgs else "\n")
 
         segmentation_map_path = get_mask_path_fn(img_path)
         if load_data:

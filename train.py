@@ -89,9 +89,8 @@ def main():
         # albumentations.GridDistortion(p=0.5),
     ]))
 
-    mean, std = (0.041, 0.129, 0.03), (0.054, 0.104, 0.046)
     common_pipeline = albumentation_wrapper(albumentations.Compose([
-        albumentations.Normalize(mean=mean, std=std, max_pixel_value=255.0, p=1.0),
+        albumentations.Normalize(mean=model_config.MEAN, std=model_config.STD, max_pixel_value=255.0, p=1.0),
         albumentations.Resize(*model_config.IMAGE_SIZES, interpolation=cv2.INTER_LINEAR)
     ]))
     train_pipeline = transforms.compose_transformations((augmentation_pipeline, common_pipeline))
@@ -142,7 +141,9 @@ def main():
                                             data_config.LABEL_MAP, max_batches=10, segmentation=True)
             tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics,
                                       data_config.LABEL_MAP, color_map=data_config.COLOR_MAP,
-                                      denormalize_img_fn=partial(denormalize_np, mean=mean, std=std))
+                                      denormalize_img_fn=partial(denormalize_np,
+                                                                 mean=model_config.MEAN,
+                                                                 std=model_config.STD))
 
         best_loss = 1000
         last_checkpoint_epoch = 0

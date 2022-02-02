@@ -5,7 +5,6 @@ import albumentations
 import cv2
 import numpy as np
 
-from config.data_config import get_data_config
 from config.model_config import get_model_config
 from src.torch_utils.utils.misc import show_img
 
@@ -13,14 +12,12 @@ from src.torch_utils.utils.misc import show_img
 def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.ndarray, np.ndarray],
                                                                          tuple[np.ndarray, np.ndarray]]:
     """Returns a function that applies the albumentation transforms to a batch."""
-    data_config = get_data_config()
-    nb_classes = data_config.OUTPUT_CLASSES
 
     def albumentation_transform_fn(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Apply transformations on a batch of data."""
         out_sizes = transform(image=imgs[0])["image"].shape[:2]
         out_imgs = np.empty((imgs.shape[0], *out_sizes, 3), dtype=np.float32)
-        out_labels = np.empty((imgs.shape[0], *out_sizes, nb_classes), dtype=np.uint8)
+        out_labels = np.empty((imgs.shape[0], *out_sizes, labels.shape[-1]), dtype=np.uint8)
         for i, (img, label) in enumerate(zip(imgs, labels)):
             transformed = transform(image=img, mask=label)
             out_imgs[i] = transformed["image"]
@@ -32,6 +29,8 @@ def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.nda
 if __name__ == "__main__":
     def test_fn():
         from argparse import ArgumentParser
+        from config.data_config import get_data_config
+
         parser = ArgumentParser(description=("Script to test the augmentation pipeline. "
                                              "Run with 'python -m src.dataset.data_transformations_albumentations "
                                              "<path>'."))
