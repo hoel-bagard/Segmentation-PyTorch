@@ -1,6 +1,10 @@
 """Inference script.
 
 Basically the same as the test one, but handles tiling.
+
+Note:
+TODO Due to the way the for loops for tiling are written, it is not guaranteed that the whole image will be processed.
+     (The end borders might not be in a tile. Remove the -tile_size in the range, add an if.)
 """
 import logging
 from argparse import ArgumentParser
@@ -15,7 +19,6 @@ import torch
 from einops import rearrange
 
 from config.model_config import get_model_config
-from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
 from src.dataset.default_loader import (
     default_load_data,
@@ -142,14 +145,17 @@ def main():
         logger.debug(f"Processing image {img_path.name} ({i+1}/{nb_imgs})")
 
         img = default_load_data(img_path)
+        one_hot_mask = default_load_labels(mask_path)  # TODO: Make this step optional
         height, width, _ = img.shape
-        one_hot_mask = default_load_labels(mask_path)
         assert one_hot_mask.shape[0] == height and one_hot_mask.shape[1] == width, (
             f"\nShape of the image and the mask do not match for image {img_path}")
 
+        nb_tiles_per_img = (1 + (width-tile_width) // stride_width) * (1 + (height-tile_height) // stride_height)
+        tile_idx = 0
         pred_mask = np.zeros_like(one_hot_mask)
         for x in range(0, width-tile_width, stride_width):
             for y in range(0, height-tile_height, stride_height):
+                logger.debug(f"Processing tile {(tile_idx := tile_idx + 1)} / {nb_tiles_per_img}")
                 tile = img[y:y+tile_height, x:x+tile_width]
 
                 with torch.no_grad():
