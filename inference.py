@@ -30,45 +30,46 @@ from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict, show_img
 
 
-def draw_blobs(img: torch.Tensor,
-               mask_pred: np.ndarray,
-               mask_label: np.ndarray,
-               keypoints_pred,
-               size: Optional[tuple[int, int]] = None) -> np.ndarray:
-    """Place the segmentation masks next to the original image. Also puts the predicted blobs on the original image.
+def draw_blobs_from_bboxes(img: np.ndarray, bboxes: list[tuple[int, int, int, int]]) -> np.ndarray:
+    """Utils function that draws bounding boxes as ellipses."""
+    img = img.copy()
+    for left, top, width, height in bboxes:
+        center = (left + width//2, top + height//2)
+        img = cv2.ellipse(img, center, (width, height), 0, 0, 360, color=255, thickness=4)
+    return img
+
+
+def concat_imgs(img: np.ndarray,
+                mask_pred: np.ndarray,
+                mask_label: np.ndarray) -> np.ndarray:
+    """Place the segmentation masks next to the original image.
 
     Args:
         img: Original image
         mask_pred: RGB segmentation map predicted by the network
         mask_label: RGB label segmentation mask
-        keypoints_pred: Blobs from the opencv blob detector
-        size: If given, the images will be resized to this size
 
     Returns:
-        (np.ndarray): RGB segmentation masks and original image (in one image)
+        RGB segmentation masks and original image (in one image)
     """
-    img = rearrange(img, "c w h -> w h c").cpu().detach().numpy().astype(np.uint8)
-    width, height, _ = img.shape
+    height, width, _ = img.shape
 
     # Create a blank image with some text to explain what things are
-    text_img = np.full((width, height, 3), 255, dtype=np.uint8)
-    text_img = cv2.putText(text_img, "Top left: input image.", (20, 20),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
-    text_img = cv2.putText(text_img, "Top right: label mask", (20, 40),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
-    text_img = cv2.putText(text_img, "Bottom left: predicted mask", (20, 60),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1, cv2.LINE_AA)
+    text_img = np.full((height, width, 3), 255, dtype=np.uint8)
+    font_size = max(1, width//2000)
+    text_img = cv2.putText(text_img, "Top left: input image.", (20, 40*font_size),
+                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Top right: label mask", (20, 80*font_size),
+                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Bottom left: predicted mask", (20, 120*font_size),
+                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
 
-    img_with_detections = cv2.drawKeypoints(img, keypoints_pred, np.array([]),
-                                            (255, 0, 0),
-                                            cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
-    out_img_top = cv2.hconcat((img_with_detections, mask_label))
-    out_img_bot = cv2.hconcat((mask_pred, text_img))
-    out_img = cv2.vconcat((out_img_top, out_img_bot))
-
-    if size is not None:
-        out_img = cv2.resize(out_img, size, interpolation=cv2.INTER_AREA)
+    if width > 4*height:
+        out_img = cv2.vconcat((img, mask_pred, mask_label, text_img))
+    else:
+        out_img_top = cv2.hconcat((img, mask_label))
+        out_img_bot = cv2.hconcat((mask_pred, text_img))
+        out_img = cv2.vconcat((out_img_top, out_img_bot))
 
     return out_img
 
@@ -95,6 +96,32 @@ def get_label_maps(classes_json_path: Path, logger: logging.Logger) -> tuple[dic
     color_map = np.asarray(color_map)
     logger.info("Color map loaded")
     return label_map, color_map
+
+
+def get_cc_bboxes(img: np.ndarray, logger: logging.Logger, area_threshold: int = 0) -> list[tuple[int, int, int, int]]:
+    """Compute the connected components on the given image and return their bounding boxes.
+
+    Args:
+        img: The image to process.
+        logger: Used to print things if necessary.
+        area_threshold: Can be used to filter out small components.
+
+    Returns:
+        A list of bounding bounding boxes (a bounding box being a tuple of (left, top, width, height))
+    """
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+
+    # cv2.connectedComponentsWithStatsWithAlgorithm
+    nb_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, 8, cv2.CV_32S)
+    logger.debug(f"Found {nb_labels-1} connected components.")
+
+    # Filter out small areas
+    bboxes: list[tuple[int, int, int, int]] = []
+    for (left, top, width, height, area) in stats:
+        if area > area_threshold:
+            bboxes.append((left, top, width, height))
+    return bboxes
 
 
 def main():
@@ -145,7 +172,7 @@ def main():
         logger.debug(f"Processing image {img_path.name} ({i+1}/{nb_imgs})")
 
         img = default_load_data(img_path)
-        one_hot_mask = default_load_labels(mask_path)  # TODO: Make this step optional
+        one_hot_mask = default_load_labels(mask_path)  # TODO: Make this step optional ?
         height, width, _ = img.shape
         assert one_hot_mask.shape[0] == height and one_hot_mask.shape[1] == width, (
             f"\nShape of the image and the mask do not match for image {img_path}")
@@ -171,17 +198,20 @@ def main():
 
                 pred_mask[y:y+tile_height, x:x+tile_width] += oh_tile_pred
 
-        pred_mask = np.argmax(pred_mask, axis=-1)
         # Recreate the segmentation mask from its one hot representation
+        pred_mask = np.argmax(pred_mask, axis=-1)
         label_mask_rgb = cv2.cvtColor(np.asarray(color_map[pred_mask], dtype=np.uint8), cv2.COLOR_RGB2BGR)
-        show_img(label_mask_rgb)
 
+        mask = cv2.imread(str(mask_path))
+        label_bboxes = get_cc_bboxes(mask, logger)
+        pred_bboxes = get_cc_bboxes(label_mask_rgb, logger)
 
+        drawn_labels = draw_blobs_from_bboxes(mask, label_bboxes)
+        drawn_preds = draw_blobs_from_bboxes(label_mask_rgb, pred_bboxes)
+        result_img = concat_imgs(img, drawn_preds, drawn_labels)
+        show_img(result_img)
 
-
-        # pred_mask_rgb = np.asarray(color_map[pred_mask], dtype=np.uint8)
-        # label_mask_rgb = np.asarray(color_map[label_mask], dtype=np.uint8)
-
+        # TODO: Compute confusion matrix based on the bounding boxes.
 
 
 if __name__ == "__main__":
