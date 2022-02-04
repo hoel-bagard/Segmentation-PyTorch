@@ -30,12 +30,14 @@ from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict, show_img
 
 
-def draw_blobs_from_bboxes(img: np.ndarray, bboxes: list[tuple[int, int, int, int]]) -> np.ndarray:
+def draw_blobs_from_bboxes(img: np.ndarray,
+                           bboxes: list[tuple[int, int, int, int]],
+                           color: tuple[int, int, int]) -> np.ndarray:
     """Utils function that draws bounding boxes as ellipses."""
     img = img.copy()
     for left, top, width, height in bboxes:
         center = (left + width//2, top + height//2)
-        img = cv2.ellipse(img, center, (width, height), 0, 0, 360, color=255, thickness=4)
+        img = cv2.ellipse(img, center, (width, height), 0, 0, 360, color=color, thickness=4)
     return img
 
 
@@ -53,18 +55,22 @@ def concat_imgs(img: np.ndarray,
         RGB segmentation masks and original image (in one image)
     """
     height, width, _ = img.shape
+    vert_stack = width > 4*height  # If the image is very wide, stack everything vertically instead of in a square.
 
     # Create a blank image with some text to explain what things are
     text_img = np.full((height, width, 3), 255, dtype=np.uint8)
     font_size = max(1, width//2000)
-    text_img = cv2.putText(text_img, "Top left: input image.", (20, 40*font_size),
-                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
-    text_img = cv2.putText(text_img, "Top right: label mask", (20, 80*font_size),
-                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
-    text_img = cv2.putText(text_img, "Bottom left: predicted mask", (20, 120*font_size),
-                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size, cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Top: input image" if vert_stack else "Top left: input image.",
+                           (20, 40*font_size), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size,
+                           cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Middle: predicted mask" if vert_stack else "Top right: label mask",
+                           (20, 80*font_size), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size,
+                           cv2.LINE_AA)
+    text_img = cv2.putText(text_img, "Bottom: label mask" if vert_stack else "Bottom left: predicted mask",
+                           (20, 120*font_size), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 0, 0), 1*font_size,
+                           cv2.LINE_AA)
 
-    if width > 4*height:
+    if vert_stack:
         out_img = cv2.vconcat((img, mask_pred, mask_label, text_img))
     else:
         out_img_top = cv2.hconcat((img, mask_label))
@@ -128,6 +134,7 @@ def main():
     parser = ArgumentParser(description="Segmentation inference")
     parser.add_argument("model_path", type=Path, help="Path to the checkpoint to use")
     parser.add_argument("data_path", type=Path, help="Path to the test dataset")
+    parser.add_argument("--output_path", "-o", type=Path, default=None, help="Save results to that folder if given.")
     parser.add_argument("--json_path", "-j", type=Path,
                         help="Json file with the index mapping, defaults to data_path.parent / 'classes.json'")
     parser.add_argument("--tile_size", "-ts", nargs=2, default=[256, 256], type=int, help="Size of the tiles (w, h)")
@@ -138,6 +145,7 @@ def main():
 
     model_path: Path = args.model_path
     data_path: Path = args.data_path
+    output_folder: Path = args.output_path
     json_path: Path = args.json_path
     tile_width: int
     tile_height: int
@@ -200,16 +208,24 @@ def main():
 
         # Recreate the segmentation mask from its one hot representation
         pred_mask = np.argmax(pred_mask, axis=-1)
-        label_mask_rgb = cv2.cvtColor(np.asarray(color_map[pred_mask], dtype=np.uint8), cv2.COLOR_RGB2BGR)
+        pred_mask_rgb = cv2.cvtColor(np.asarray(color_map[pred_mask], dtype=np.uint8), cv2.COLOR_RGB2BGR)
 
-        mask = cv2.imread(str(mask_path))
-        label_bboxes = get_cc_bboxes(mask, logger)
-        pred_bboxes = get_cc_bboxes(label_mask_rgb, logger)
+        if logger.getEffectiveLevel() == logging.DEBUG:
+            mask = cv2.imread(str(mask_path))
+            label_bboxes = get_cc_bboxes(mask, logger)
+            pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger)
 
-        drawn_labels = draw_blobs_from_bboxes(mask, label_bboxes)
-        drawn_preds = draw_blobs_from_bboxes(label_mask_rgb, pred_bboxes)
-        result_img = concat_imgs(img, drawn_preds, drawn_labels)
-        show_img(result_img)
+            drawn_img = draw_blobs_from_bboxes(img, label_bboxes, (0, 255, 0))
+            drawn_img = draw_blobs_from_bboxes(drawn_img, pred_bboxes, (0, 0, 255))
+            result_img = concat_imgs(drawn_img, mask, pred_mask_rgb)
+            show_img(result_img)
+        if output_folder:
+            rel_path = img_path.relative_to(data_path)
+            output_path = output_folder / rel_path.parent / img_path.name
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            drawn_img = draw_blobs_from_bboxes(img, pred_bboxes, (0, 0, 255))
+            logger.info(f"Saving result image at {output_path}")
+            cv2.imwrite(str(output_path), drawn_img)
 
         # TODO: Compute confusion matrix based on the bounding boxes.
 
