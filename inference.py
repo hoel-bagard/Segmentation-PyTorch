@@ -10,7 +10,6 @@ import logging
 from argparse import ArgumentParser
 from json import load
 from pathlib import Path
-from typing import Optional
 
 import albumentations
 import cv2
@@ -28,6 +27,31 @@ from src.dataset.default_loader import (
 from src.networks.build_network import build_model
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict, show_img
+from src.utils.iou import get_iou
+
+
+def get_label_maps(classes_json_path: Path, logger: logging.Logger) -> tuple[dict[int, str], np.ndarray]:
+    """Create 'maps' linking an int (class nb) to either a class name or its color.
+
+    Args:
+        classes_json: Path to a json with a list of {"name": "class_name", "color": [R,G,B]}
+        logger: Logger used to print things.
+
+    Returns:
+        A dictionary mapping an int to a class name, and a list of colors (index is the class nb)
+    """
+    # Create the map between label (int) and color.
+    assert classes_json_path.exists(), "\nCould not find the classes.json file"
+    label_map = {}   # Maps an int to a class name
+    color_map = []   # Maps an int to a color (corresponding to a class)
+    with open(classes_json_path) as json_file:
+        data = load(json_file)
+        for key, entry in enumerate(data):
+            label_map[key] = entry["name"]
+            color_map.append(entry["color"])
+    color_map = np.asarray(color_map)
+    logger.info("Color map loaded")
+    return label_map, color_map
 
 
 def draw_blobs_from_bboxes(img: np.ndarray,
@@ -80,30 +104,6 @@ def concat_imgs(img: np.ndarray,
     return out_img
 
 
-def get_label_maps(classes_json_path: Path, logger: logging.Logger) -> tuple[dict[int, str], np.ndarray]:
-    """Create 'maps' linking an int (class nb) to either a class name or its color.
-
-    Args:
-        classes_json: Path to a json with a list of {"name": "class_name", "color": [R,G,B]}
-        logger: Logger used to print things.
-
-    Returns:
-        A dictionary mapping an int to a class name, and a list of colors (index is the class nb)
-    """
-    # Create the map between label (int) and color.
-    assert classes_json_path.exists(), "\nCould not find the classes.json file"
-    label_map = {}   # Maps an int to a class name
-    color_map = []   # Maps an int to a color (corresponding to a class)
-    with open(classes_json_path) as json_file:
-        data = load(json_file)
-        for key, entry in enumerate(data):
-            label_map[key] = entry["name"]
-            color_map.append(entry["color"])
-    color_map = np.asarray(color_map)
-    logger.info("Color map loaded")
-    return label_map, color_map
-
-
 def get_cc_bboxes(img: np.ndarray, logger: logging.Logger, area_threshold: int = 0) -> list[tuple[int, int, int, int]]:
     """Compute the connected components on the given image and return their bounding boxes.
 
@@ -128,6 +128,46 @@ def get_cc_bboxes(img: np.ndarray, logger: logging.Logger, area_threshold: int =
         if area > area_threshold:
             bboxes.append((left, top, width, height))
     return bboxes
+
+
+def get_confusion_matrix_from_bboxes(labels: list[tuple[int, int, int, int]],
+                                     preds: list[tuple[int, int, int, int]]) -> tuple[int, int, int]:
+    """Compute the True Positives, False Positives and False Negatives corresponding to the given labels / predictions.
+
+    Notes: Does not take into account classes.
+           A label can be "matched" (counted as a TP) only once. If multiple predictions match with the same label,
+           only the first one will count. The other ones will be discarded.
+
+    TODO: Add a named tuple BBox  (to make things more readable)
+
+    Args:
+        labels: The labels bounding boxes.
+        preds: The predicted bounding boxes.
+
+    Returns:
+        3 ints, the TP, FP and FN numbers of occurence.
+    """
+    tp, fp, fn = 0, 0, 0,
+    already_matched = []
+    for bbox in preds:
+        matched_idx = match_bboxes(bbox, labels)
+        if matched_idx == -1:
+            fp += 1
+        elif matched_idx not in already_matched:
+            already_matched.append(matched_idx)
+            tp += 1
+    fn = len(set(np.arange(len(labels))) - set(already_matched))
+
+    return tp, fp, fn
+
+
+def match_bboxes(bbox: tuple[int, int, int, int],
+                 bboxes: list[tuple[int, int, int, int]],
+                 iou_threshold: float = 0.1) -> int:
+    for i, target_bbox in enumerate(bboxes):
+        if get_iou(bbox, target_bbox) > iou_threshold:
+            return i
+    return -1
 
 
 def main():
