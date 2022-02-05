@@ -241,19 +241,27 @@ def main():
                     oh_tile_pred = model(tile)
 
                 oh_tile_pred = rearrange(oh_tile_pred, "b c w h -> b w h c")
-                # TODO: Mult here to skew towards over-detection
                 oh_tile_pred = np.squeeze(oh_tile_pred.cpu().detach().numpy(), axis=0)
                 oh_tile_pred = resize_to_original(image=resized_tile, mask=oh_tile_pred)["mask"]
 
+                # Effectively averages the predictions from overlapping tiles.
                 pred_mask[y:y+tile_height, x:x+tile_width] += oh_tile_pred
 
-        # Recreate the segmentation mask from its one hot representation
+        # Skew the results towards over-detection
+        pred_mask[..., 1:] *= 4
+        # Small post processing to remove small areas.
+        pred_mask = cv2.GaussianBlur(pred_mask, (5, 5), 0)
+        kernel = np.ones((3, 3), np.uint8)
+        pred_mask = cv2.erode(pred_mask, kernel, iterations=1)
+
+        # Go from logits to one hot
         pred_mask = np.argmax(pred_mask, axis=-1)
+        # Recreate the segmentation mask from its one hot representation
         pred_mask_rgb = cv2.cvtColor(np.asarray(color_map[pred_mask], dtype=np.uint8), cv2.COLOR_RGB2BGR)
         label_mask = cv2.imread(str(mask_path))
 
         label_bboxes = get_cc_bboxes(label_mask, logger)
-        pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger)
+        pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger, area_threshold=50)
         if logger.getEffectiveLevel() == logging.DEBUG:
             drawn_img = draw_blobs_from_bboxes(img, label_bboxes, (0, 255, 0))
             drawn_img = draw_blobs_from_bboxes(drawn_img, pred_bboxes, (0, 0, 255))
@@ -269,8 +277,6 @@ def main():
 
         tp, fp, fn = get_confusion_matrix_from_bboxes(label_bboxes, pred_bboxes)
         logger.info(f"Results for image {img_path}: TP: {tp}, FP: {fp}, FN: {fn}")
-
-        # TODO: Compute confusion matrix based on the bounding boxes.
 
 
 if __name__ == "__main__":
