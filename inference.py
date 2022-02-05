@@ -163,7 +163,8 @@ def get_confusion_matrix_from_bboxes(labels: list[tuple[int, int, int, int]],
 
 def match_bboxes(bbox: tuple[int, int, int, int],
                  bboxes: list[tuple[int, int, int, int]],
-                 iou_threshold: float = 0.1) -> int:
+                 iou_threshold: float = 0.) -> int:
+    """Checks if the given bounding box overlapps with another from the list, if yes returns its index."""
     for i, target_bbox in enumerate(bboxes):
         if get_iou(bbox, target_bbox) > iou_threshold:
             return i
@@ -249,15 +250,14 @@ def main():
         # Recreate the segmentation mask from its one hot representation
         pred_mask = np.argmax(pred_mask, axis=-1)
         pred_mask_rgb = cv2.cvtColor(np.asarray(color_map[pred_mask], dtype=np.uint8), cv2.COLOR_RGB2BGR)
+        label_mask = cv2.imread(str(mask_path))
 
+        label_bboxes = get_cc_bboxes(label_mask, logger)
+        pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger)
         if logger.getEffectiveLevel() == logging.DEBUG:
-            mask = cv2.imread(str(mask_path))
-            label_bboxes = get_cc_bboxes(mask, logger)
-            pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger)
-
             drawn_img = draw_blobs_from_bboxes(img, label_bboxes, (0, 255, 0))
             drawn_img = draw_blobs_from_bboxes(drawn_img, pred_bboxes, (0, 0, 255))
-            result_img = concat_imgs(drawn_img, mask, pred_mask_rgb)
+            result_img = concat_imgs(drawn_img, label_mask, pred_mask_rgb)
             show_img(result_img)
         if output_folder:
             rel_path = img_path.relative_to(data_path)
@@ -266,6 +266,9 @@ def main():
             drawn_img = draw_blobs_from_bboxes(img, pred_bboxes, (0, 0, 255))
             logger.info(f"Saving result image at {output_path}")
             cv2.imwrite(str(output_path), drawn_img)
+
+        tp, fp, fn = get_confusion_matrix_from_bboxes(label_bboxes, pred_bboxes)
+        logger.info(f"Results for image {img_path}: TP: {tp}, FP: {fp}, FN: {fn}")
 
         # TODO: Compute confusion matrix based on the bounding boxes.
 
