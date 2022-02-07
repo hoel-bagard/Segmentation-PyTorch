@@ -1,6 +1,6 @@
 """Inference script.
 
-Basically the same as the test one, but handles tiling.
+Basically the same as the test one, but handles tiling, and uses connected components instead of blobs.
 
 Note:
 TODO Due to the way the for loops for tiling are written, it is not guaranteed that the whole image will be processed.
@@ -27,7 +27,7 @@ from src.dataset.default_loader import (
 from src.networks.build_network import build_model
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict, show_img
-from src.utils.iou import get_iou
+from src.utils.iou import get_iou_bboxes, get_iou_masks
 
 
 def get_label_maps(classes_json_path: Path, logger: logging.Logger) -> tuple[dict[int, str], np.ndarray]:
@@ -166,7 +166,7 @@ def match_bboxes(bbox: tuple[int, int, int, int],
                  iou_threshold: float = 0.) -> int:
     """Checks if the given bounding box overlapps with another from the list, if yes returns its index."""
     for i, target_bbox in enumerate(bboxes):
-        if get_iou(bbox, target_bbox) > iou_threshold:
+        if get_iou_bboxes(bbox, target_bbox) > iou_threshold:
             return i
     return -1
 
@@ -180,6 +180,7 @@ def main():
                         help="Json file with the index mapping, defaults to data_path.parent / 'classes.json'")
     parser.add_argument("--tile_size", "-ts", nargs=2, default=[256, 256], type=int, help="Size of the tiles (w, h)")
     parser.add_argument("--stride", "-s", nargs=2, default=[100, 100], type=int, help="Strides (w, h)")
+    parser.add_argument("--display_image", "-d", action="store_true", help="Show result.")
     parser.add_argument("--verbose_level", "-v", choices=["debug", "info", "error"], default="info", type=str,
                         help="Logger level.")
     args = parser.parse_args()
@@ -194,6 +195,7 @@ def main():
     stride_width: int
     stride_height: int
     stride_width, stride_height = args.stride
+    display_img: bool = args.display_image
     verbose_level: str = args.verbose_level
 
     model_config = get_model_config()
@@ -215,10 +217,10 @@ def main():
     print("Building model. . .", end="\r")
     model = build_model(model_config.MODEL, len(label_map), model_path=model_path,
                         eval_mode=True, **get_dataclass_as_dict(model_config))
-    logger.info("Weights loaded     ")
+    logger.info("Weights loaded. Starting to process images (this might take a while).")
 
     for i, (img_path, mask_path) in enumerate(zip(imgs_paths, masks_paths)):
-        logger.debug(f"Processing image {img_path.name} ({i+1}/{nb_imgs})")
+        logger.info(f"Processing image {img_path.name} ({i+1}/{nb_imgs})")
 
         img = default_load_data(img_path)
         one_hot_mask = default_load_labels(mask_path)  # TODO: Make this step optional ?
@@ -247,12 +249,14 @@ def main():
                 # Effectively averages the predictions from overlapping tiles.
                 pred_mask[y:y+tile_height, x:x+tile_width] += oh_tile_pred
 
-        # Skew the results towards over-detection
-        pred_mask[..., 1:] *= 4
-        # Small post processing to remove small areas.
+        # Skew the results towards over-detection if desired. Needs to be tweaked manually though
+        # pred_mask[..., 1:] *= 4
+        # Small post processing. Erode to remove small areas.
         pred_mask = cv2.GaussianBlur(pred_mask, (5, 5), 0)
         kernel = np.ones((3, 3), np.uint8)
         pred_mask = cv2.erode(pred_mask, kernel, iterations=1)
+        # kernel = np.ones((3, 3), np.uint8)
+        # pred_mask = cv2.dilate(pred_mask, kernel, iterations=1)
 
         # Go from logits to one hot
         pred_mask = np.argmax(pred_mask, axis=-1)
@@ -261,12 +265,9 @@ def main():
         label_mask = cv2.imread(str(mask_path))
 
         label_bboxes = get_cc_bboxes(label_mask, logger)
-        pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger, area_threshold=50)
-        if logger.getEffectiveLevel() == logging.DEBUG:
-            drawn_img = draw_blobs_from_bboxes(img, label_bboxes, (0, 255, 0))
-            drawn_img = draw_blobs_from_bboxes(drawn_img, pred_bboxes, (0, 0, 255))
-            result_img = concat_imgs(drawn_img, label_mask, pred_mask_rgb)
-            show_img(result_img)
+        # Again, remove small predicted areas (tweak value depending on the project).
+        pred_bboxes = get_cc_bboxes(pred_mask_rgb, logger, area_threshold=70)
+
         if output_folder:
             rel_path = img_path.relative_to(data_path)
             output_path = output_folder / rel_path.parent / img_path.name
@@ -274,9 +275,21 @@ def main():
             drawn_img = draw_blobs_from_bboxes(img, pred_bboxes, (0, 0, 255))
             logger.info(f"Saving result image at {output_path}")
             cv2.imwrite(str(output_path), drawn_img)
+        if (output_folder and logger.getEffectiveLevel() == logging.DEBUG) or display_img:
+            drawn_img = draw_blobs_from_bboxes(img, label_bboxes, (0, 255, 0))
+            drawn_img = draw_blobs_from_bboxes(drawn_img, pred_bboxes, (0, 0, 255))
+            result_img = concat_imgs(drawn_img, pred_mask_rgb, label_mask)
+            if display_img:
+                show_img(result_img)
+            if output_folder:
+                output_path = output_path.with_stem(img_path.stem + "_debug")
+                cv2.imwrite(str(output_path), result_img)
 
         tp, fp, fn = get_confusion_matrix_from_bboxes(label_bboxes, pred_bboxes)
         logger.info(f"Results for image {img_path}: TP: {tp}, FP: {fp}, FN: {fn}")
+
+        iou = get_iou_masks(label_mask, pred_mask_rgb, color=(0, 0, 255))
+        logger.info(f"\tIoU: {iou:.3f}")
 
 
 if __name__ == "__main__":

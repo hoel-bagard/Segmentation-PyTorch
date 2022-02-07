@@ -1,4 +1,7 @@
-def get_iou(bbox1: tuple[int, int, int, int], bbox2: tuple[int, int, int, int]) -> float:
+import numpy as np
+
+
+def get_iou_bboxes(bbox1: tuple[int, int, int, int], bbox2: tuple[int, int, int, int]) -> float:
     """Calculate the Intersection over Union (IoU) of two bounding boxes.
 
     TODO: Add a named tuple BBox  (to make things more readable)
@@ -28,3 +31,15 @@ def get_iou(bbox1: tuple[int, int, int, int], bbox2: tuple[int, int, int, int]) 
     # Compute the IoU
     iou = intersection_area / float(bbox1_area + bbox2_area - intersection_area)
     return iou
+
+
+def get_iou_masks(mask_label: np.ndarray, mask_pred: np.ndarray, color: tuple[int, int, int]) -> float:
+    """Get the IoU of two masks for the given color."""
+    assert mask_label.shape == mask_pred.shape, (f"Masks must have the same shape, but got {mask_label.shape} "
+                                                 f"and {mask_pred.shape}")
+    # Transform the masks into booleans (color / not color)
+    labels_bool = (mask_label == np.asarray(color)).all(-1)
+    pred_bool = (mask_pred == np.asarray(color)).all(-1)
+    intersection = np.sum(np.logical_and(labels_bool, pred_bool))
+    union = np.sum(labels_bool) + np.sum(pred_bool) - intersection
+    return intersection / union
