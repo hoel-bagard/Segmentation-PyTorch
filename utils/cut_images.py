@@ -21,9 +21,9 @@ def main():
     stride_width, stride_height = args.stride
 
     exts = [".jpg", ".png"]
-    img_path_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
-    nb_imgs = len(img_path_list)
-    for i, img_path in enumerate(img_path_list):
+    file_list = list([p for p in data_path.rglob('*') if p.suffix in exts and "mask" not in str(p)])
+    nb_imgs = len(file_list)
+    for i, img_path in enumerate(file_list):
         msg = f"Processing image {img_path.name} ({i+1}/{nb_imgs})"
         print(msg + ' ' * (get_terminal_size(fallback=(156, 38)).columns - len(msg)), end='\r')
 

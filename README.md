@@ -64,5 +64,3 @@ The code is trying to follow diverse PEPs conventions (notably PEP8). To have a 
 sudo pacman -S flake8 python-flake8-docstrings
 pip install pep8-naming flake8-import-order
 ```
-
-(The docstrings follow the google format.)
