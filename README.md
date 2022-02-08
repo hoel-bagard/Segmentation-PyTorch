@@ -34,7 +34,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py
 
 Notes:
 The whole code folder will be copied in the checkpoint directory, in order to always have code that goes with the checkpoints. This means that you should not put your virtualenv or checkpoint directory in the code folder.
-`CUDA_VISIBLE_DEVICES` is used to select with GPU to use. Check that the one you plan to use is free before you use it by running the `nvidia-smi` command.
+`CUDA_VISIBLE_DEVICES` is used to select which GPU to use. Check that the one you plan to use is free before you use it by running the `nvidia-smi` command.
 
 ## Inference
 Use `python inference.py --help` to see all the options. The `model_config.py` must correspond to the one used when training the checkpoint.
