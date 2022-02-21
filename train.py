@@ -13,13 +13,13 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import src.dataset.data_transformations as transforms
 from config.data_config import get_data_config
 from config.model_config import get_model_config
+from src.dataset.danger_p_loader import (
+    danger_p_load_data,
+    danger_p_load_labels,
+    danger_p_loader
+)
 from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
-from src.dataset.default_loader import (
-    default_load_data,
-    default_load_labels,
-    default_loader
-)
 from src.losses import DiceBCELoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
@@ -59,20 +59,20 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-    train_data, train_labels = default_loader(data_config.DATA_PATH / "Train",
-                                              get_mask_path_fn=get_mask_path,
-                                              limit=args.limit,
-                                              load_data=args.load_data,
-                                              data_preprocessing_fn=default_load_data if args.load_data else None,
-                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    train_data, train_labels = danger_p_loader(data_config.DATA_PATH / "Train",
+                                               get_mask_path_fn=get_mask_path,
+                                               limit=args.limit,
+                                               load_data=args.load_data,
+                                               data_preprocessing_fn=danger_p_load_data if args.load_data else None,
+                                               labels_preprocessing_fn=danger_p_load_labels if args.load_data else None)
     logger.info("Train data loaded")
 
-    val_data, val_labels = default_loader(data_config.DATA_PATH / "Validation",
-                                          get_mask_path_fn=get_mask_path,
-                                          limit=args.limit,
-                                          load_data=args.load_data,
-                                          data_preprocessing_fn=default_load_data if args.load_data else None,
-                                          labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    val_data, val_labels = danger_p_loader(data_config.DATA_PATH / "Validation",
+                                           get_mask_path_fn=get_mask_path,
+                                           limit=args.limit,
+                                           load_data=args.load_data,
+                                           data_preprocessing_fn=danger_p_load_data if args.load_data else None,
+                                           labels_preprocessing_fn=danger_p_load_labels if args.load_data else None)
     logger.info("Validation data loaded")
 
     # Data augmentation done on cpu.

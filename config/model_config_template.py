@@ -13,7 +13,8 @@ class ModelConfig:
     WEIGHT_DECAY = 1e-2   # Weight decay for the optimizer
 
     # Data processing
-    IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (512, 512))  # All images will be resized to this size
+    IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (1024, 640))  # All images will be resized to this size
+    OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (16, 10))  # Output size of the network
     # The mean and std used to normalize the dataset.
     MEAN: tuple[float, float, float] = (0.485, 0.456, 0.406)
     STD: tuple[float, float, float] = (0.229, 0.224, 0.225)
