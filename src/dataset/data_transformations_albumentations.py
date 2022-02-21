@@ -51,8 +51,8 @@ if __name__ == "__main__":
         # This requires having a config and dataset (not ideal), but it's just to test so whatever...
         data_config = get_data_config()
         one_hot_mask = np.zeros((*mask.shape[:2][::1], data_config.OUTPUT_CLASSES))
-        for key in range(len(data_config.COLOR_MAP)):
-            one_hot_mask[:, :, key][(mask_rgb == data_config.COLOR_MAP[key]).all(axis=-1)] = 1
+        for key in range(len(data_config.IDX_TO_COLOR)):
+            one_hot_mask[:, :, key][(mask_rgb == data_config.IDX_TO_COLOR[key]).all(axis=-1)] = 1
 
         model_config = get_model_config()
         img_sizes = model_config.IMAGE_SIZES
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         for i in range(batch_size):
             # One hot to bgr
             aug_mask = np.argmax(aug_one_hot_masks[i], axis=-1)
-            aug_mask_rgb = np.asarray(data_config.COLOR_MAP[aug_mask], dtype=np.uint8)
+            aug_mask_rgb = np.asarray(data_config.IDX_TO_COLOR[aug_mask], dtype=np.uint8)
             aug_mask_bgr = cv2.cvtColor(aug_mask_rgb, cv2.COLOR_RGB2BGR)
 
             if debug:

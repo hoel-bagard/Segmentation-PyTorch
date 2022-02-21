@@ -138,7 +138,7 @@ def main():
             metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                             data_config.LABEL_MAP, max_batches=10, segmentation=True)
             tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics,
-                                      data_config.LABEL_MAP, color_map=data_config.COLOR_MAP,
+                                      data_config.LABEL_MAP, color_map=data_config.IDX_TO_COLOR
                                       denormalize_img_fn=partial(denormalize_np,
                                                                  mean=model_config.MEAN,
                                                                  std=model_config.STD))

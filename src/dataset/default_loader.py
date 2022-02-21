@@ -100,8 +100,8 @@ def default_load_labels(label_paths: Path | list[Path]) -> np.ndarray:
         # Transform the mask into a one hot mask
         data_config = get_data_config()
         one_hot_mask = np.zeros((height, width, data_config.OUTPUT_CLASSES))
-        for key in range(len(data_config.COLOR_MAP)):
-            one_hot_mask[:, :, key][(mask == data_config.COLOR_MAP[key]).all(axis=-1)] = 1
+        for key in range(len(data_config.IDX_TO_COLOR)):
+            one_hot_mask[:, :, key][(mask == data_config.IDX_TO_COLOR[key]).all(axis=-1)] = 1
 
         # Assert to check that each pixel of the segmentation mask has a class. Not used for performance reasons.
         # assert np.sum(one_hot_mask) == np.prod(ModelConfig.IMAGE_SIZES), (f"At least one pixel has no class"
