@@ -55,13 +55,9 @@ def main():
 
             nb_moved_samples += 1
             dest_img_path = (val_path / img_path.relative_to(data_path)).parent
-            dest_mask_paths = [(val_path / img_mask_path.relative_to(data_path)).parent
-                               for img_mask_path in img_mask_paths]
 
             dest_img_path.mkdir(parents=True, exist_ok=True)
             shutil.move(img_path, dest_img_path)
-            for img_mask_path, dest_mask_path in zip(img_mask_paths, dest_mask_paths):
-                shutil.move(img_mask_path, dest_mask_path)
 
     print(f"\nFinished splitting dataset, moved {nb_moved_samples} from Train to Validation")
 

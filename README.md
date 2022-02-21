@@ -50,11 +50,8 @@ Example:
 python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffice/ ../out
 ```
 
-Filtering: TODO
-(there are 21 objects, but the targets are the 5 + 1 (安全), please filter the data)
-
-You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). 
-
+#### Split the data
+You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You can either do it by hand, or modify the `utils/split_train_val.py` script to work on your dataset.
 
 
 ## Train

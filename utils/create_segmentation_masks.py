@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
 from shutil import get_terminal_size
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -8,15 +9,15 @@ import numpy as np
 from config.data_config import get_data_config
 
 
-def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128):
+def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128, limit: Optional[int] = None):
     """Create the segmentation masks from the csvs."""
     data_config = get_data_config()
 
     csv_paths = list(data_path.rglob("*.csv"))
     nb_imgs = len(csv_paths)
-    for i, csv_path in enumerate(csv_paths):
+    for i, csv_path in enumerate(csv_paths, start=1):
         dir_path = csv_path.parent  # Name of the image.
-        msg = f"Processing image {dir_path.name} ({i+1}/{nb_imgs})"
+        msg = f"Processing image {dir_path.name} ({i}/{nb_imgs})"
         print(msg + ' ' * (get_terminal_size(fallback=(156, 38)).columns - len(msg)), end='\r')
 
         with open(csv_path, encoding="shift-jis") as f:
@@ -30,19 +31,25 @@ def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128):
 
         # 5 and 8 are hard coded.
         # They are different from max(coord_y) and max(coord_x) because there is some overlapp between tiles.
-        mask = np.zeros((5*tile_size, 8*tile_size, 3))
+        mask = np.zeros((5, 8, 3))  # Actual mask used as label.
+        mask_full = np.zeros((5*tile_size, 8*tile_size, 3))  # Mask with the same size as the images.
         # Fuse the tiles into one image.
         for cls, (coord_y, coord_x) in zip(classes, coordinates):
             cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "安全"
             if coord_y % 2 == 0:
                 coord_y //= 2
-                mask[coord_y*tile_size:coord_y*tile_size + tile_size,
-                     coord_x*tile_size:coord_x*tile_size + tile_size] = data_config.NAME_TO_COLOR[cls]
+                mask_full[coord_y*tile_size:coord_y*tile_size + tile_size,
+                          coord_x*tile_size:coord_x*tile_size + tile_size] = data_config.NAME_TO_COLOR[cls]
+                mask[coord_y, coord_x] = data_config.NAME_TO_COLOR[cls]
 
         rel_path = dir_path.parent.relative_to(data_path)
         output_path = output_dir / rel_path / (dir_path.name + "_mask.png")
         output_path.parent.mkdir(exist_ok=True, parents=True)
         cv2.imwrite(str(output_path), mask)
+        cv2.imwrite(str(output_path.with_stem(dir_path.name + "_full_mask")), mask_full)
+
+        if limit and i == limit:
+            break
     print(f"\nFinished creating the masks. Result saved in {output_dir}")
 
 
@@ -51,12 +58,14 @@ def main():
                                          " Call with python -m utils/create_segmentation_masks"))
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("output_dir", type=Path, help="Output path")
+    parser.add_argument("--limit", "-l", type=int, default=None, help="Break after N samples.")
     args = parser.parse_args()
 
     data_path = args.data_path
     output_dir = args.output_dir
+    limit: int = args.limit
 
-    create_masks(data_path, output_dir)
+    create_masks(data_path, output_dir, limit=limit)
 
 
 if __name__ == "__main__":
