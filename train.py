@@ -15,11 +15,9 @@ from config.data_config import get_data_config
 from config.model_config import get_model_config
 from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
-from src.dataset.default_loader import (
-    default_load_data,
-    default_load_labels,
-    default_loader
-)
+from src.dataset.default_loader import default_loader as loader_fn
+from src.dataset.default_loader import load_data_fn as load_data_fn
+from src.dataset.default_loader import load_labels_fn as load_labels_fn
 from src.losses import DiceBCELoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
@@ -59,20 +57,20 @@ def main():
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-    train_data, train_labels = default_loader(data_config.DATA_PATH / "Train",
-                                              get_mask_path_fn=get_mask_path,
-                                              limit=args.limit,
-                                              load_data=args.load_data,
-                                              data_preprocessing_fn=default_load_data if args.load_data else None,
-                                              labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    train_data, train_labels = loader_fn(data_config.DATA_PATH / "Train",
+                                         get_mask_path_fn=get_mask_path,
+                                         limit=args.limit,
+                                         load_data=args.load_data,
+                                         data_preprocessing_fn=load_data_fn if args.load_data else None,
+                                         labels_preprocessing_fn=load_labels_fn if args.load_data else None)
     logger.info("Train data loaded")
 
-    val_data, val_labels = default_loader(data_config.DATA_PATH / "Validation",
-                                          get_mask_path_fn=get_mask_path,
-                                          limit=args.limit,
-                                          load_data=args.load_data,
-                                          data_preprocessing_fn=default_load_data if args.load_data else None,
-                                          labels_preprocessing_fn=default_load_labels if args.load_data else None)
+    val_data, val_labels = loader_fn(data_config.DATA_PATH / "Validation",
+                                     get_mask_path_fn=get_mask_path,
+                                     limit=args.limit,
+                                     load_data=args.load_data,
+                                     data_preprocessing_fn=load_data_fn if args.load_data else None,
+                                     labels_preprocessing_fn=load_labels_fn if args.load_data else None)
     logger.info("Validation data loaded")
 
     # Data augmentation done on cpu.
@@ -99,8 +97,8 @@ def main():
                         train_labels,
                         model_config.BATCH_SIZE,
                         nb_workers=data_config.NB_WORKERS,
-                        data_preprocessing_fn=default_load_data if not args.load_data else None,
-                        labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                        data_preprocessing_fn=load_data_fn if not args.load_data else None,
+                        labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
                         cpu_pipeline=train_pipeline,
                         gpu_pipeline=transforms.to_tensor(),
                         shuffle=True) as train_dataloader, \
@@ -108,8 +106,8 @@ def main():
                        val_labels,
                        model_config.BATCH_SIZE,
                        nb_workers=data_config.NB_WORKERS,
-                       data_preprocessing_fn=default_load_data if not args.load_data else None,
-                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                       data_preprocessing_fn=load_data_fn if not args.load_data else None,
+                       labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
                        cpu_pipeline=common_pipeline,
                        gpu_pipeline=transforms.to_tensor(),
                        shuffle=False) as val_dataloader:
