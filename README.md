@@ -12,6 +12,18 @@ opencv-python
 git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodules
 ```
 
+### Config files
+In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.
+
+### DataConfig
+Contains most of the parameters regarding the data. Most of the values in the template can be kept as they are. But some things need to be set:
+- The class names and colors for the dataset.
+- The 3 paths usually need to be modified for each training (`DATA_PATH`, `CHECKPOINT_DIR` & `TB_DIR`). 
+
+### ModelConfig
+Contains the parameters that influence training. The default values should work fine, but you can try to tweak them to get better results.\
+For the `MAX_EPOCHS` value, usually around 400 or 600 epochs is enough, you will need to train at least once to get an idea for your particular dataset.
+
 ### Get some data and format it:
 
 The data for this project is on the NAS under:
@@ -28,18 +40,22 @@ Example:
 python utils/stitch.py ../data/20220128 ../out
 ```
 
+#### Generate the masks
+Generate RGB segmentation masks with (make sure the classes are set in the data config file):
+```
+python -m utils.create_segmentation_masks <path to the dataset> <path to where the stiched masks will be saved>
+```
+Example:
+```
+python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffice/ ../out
+```
+
+Filtering: TODO
+(there are 21 objects, but the targets are the 5 + 1 (安全), please filter the data)
 
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). 
-You then need to create a classes.json next to the Train and Validation folder, with the names of the classes (one per line). (see [here](https://github.com/hoel-bagard/Segmentation-PyTorch/wiki/Dataset-Preprocessing) for an example)
 
-## Config files
-In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.
 
-### DataConfig
-Contains most of the parameters regarding the data. Most of the values in the template can be kept as they are. The 3 paths usually need to be modified for each training (`DATA_PATH`, `CHECKPOINT_DIR` & `TB_DIR`). 
-
-### ModelConfig
-Contains the parameters that influence training. The default values should work fine, but you can try to tweak them to get better results. For the `MAX_EPOCHS` value, usually around 400 or 600 epochs is enough, you will need to train at least once to get an idea for your particular dataset.
 
 ## Train
 Once you have the environment all set up and your two config files ready, training an AI is straight forward. Just connect to the server of your choice (make sure the dependencies are installed) and run the following command: 
