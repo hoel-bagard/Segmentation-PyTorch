@@ -14,6 +14,21 @@ git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodul
 
 ### Get some data and format it:
 
+The data for this project is on the NAS under:
+- `A7_*****/<client_name>/2022_0128_5-Objects-Data/` 
+- `A7_*****/<client_name>/20211207_見直しデータ`
+
+#### Preprocessing
+Stitch together the tiles with:
+```
+python utils/stitch.py <path to the dataset> <path to where the stiched images will be saved>
+```
+Example:
+```
+python utils/stitch.py ../data/20220128 ../out
+```
+
+
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). 
 You then need to create a classes.json next to the Train and Validation folder, with the names of the classes (one per line). (see [here](https://github.com/hoel-bagard/Segmentation-PyTorch/wiki/Dataset-Preprocessing) for an example)
 
