@@ -31,8 +31,8 @@ def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128, limit:
 
         # 5 and 8 are hard coded.
         # They are different from max(coord_y) and max(coord_x) because there is some overlapp between tiles.
-        mask = np.zeros((5, 8, 3))  # Actual mask used as label.
-        mask_full = np.zeros((5*tile_size, 8*tile_size, 3))  # Mask with the same size as the images.
+        mask = np.zeros((5, 8, 3), dtype=np.uint8)  # Actual mask used as label.
+        mask_full = np.zeros((5*tile_size, 8*tile_size, 3), dtype=np.uint8)  # Mask with the same size as the images.
         # Fuse the tiles into one image.
         for cls, (coord_y, coord_x) in zip(classes, coordinates):
             cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "安全"
@@ -41,6 +41,9 @@ def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128, limit:
                 mask_full[coord_y*tile_size:coord_y*tile_size + tile_size,
                           coord_x*tile_size:coord_x*tile_size + tile_size] = data_config.NAME_TO_COLOR[cls]
                 mask[coord_y, coord_x] = data_config.NAME_TO_COLOR[cls]
+
+        mask = cv2.cvtColor(mask, cv2.COLOR_RGB2BGR)
+        mask_full = cv2.cvtColor(mask_full, cv2.COLOR_RGB2BGR)
 
         rel_path = dir_path.parent.relative_to(data_path)
         output_path = output_dir / rel_path / (dir_path.name + "_mask.png")
