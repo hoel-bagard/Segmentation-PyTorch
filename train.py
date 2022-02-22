@@ -3,6 +3,7 @@ import sys
 import time
 import traceback
 from functools import partial
+from pathlib import Path
 from subprocess import CalledProcessError
 
 import albumentations
@@ -13,30 +14,28 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import src.dataset.data_transformations as transforms
 from config.data_config import get_data_config
 from config.model_config import get_model_config
-from src.dataset.danger_p_loader import (
-    danger_p_load_data,
-    danger_p_load_labels,
-    danger_p_loader
-)
+from src.dataset.danger_p_loader import danger_p_load_data as load_data_fn
+from src.dataset.danger_p_loader import danger_p_load_labels as load_labels_fn
+from src.dataset.danger_p_loader import danger_p_loader as loader_fn
 from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
 from src.losses import DiceBCELoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
-from src.torch_utils.utils.draw import denormalize_np
+from src.torch_utils.utils.imgs_misc import denormalize_np
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict
 from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.ressource_usage import resource_usage
-from src.torch_utils.utils.tensorboard import TensorBoard
 from src.torch_utils.utils.torch_summary import summary
 from src.torch_utils.utils.trainer import Trainer
+from src.utils.seg_tensorboard import SegmentationTensorBoard
 
 
 def main():
     parser = argparse.ArgumentParser(description="Segmentation training")
-    parser.add_argument("--limit", default=None, type=int, help="Limits the number of apparition of each class")
+    parser.add_argument("--limit", "-l", default=None, type=int, help="Limits the number of apparition of each class")
     parser.add_argument("--load_data", action="store_true", help="Loads all the videos into RAM")
     parser.add_argument("--name", type=str, default="Train",
                         help="Use it to know what a train is when using ps. Also name of the logger.")
@@ -52,41 +51,39 @@ def main():
 
     prepare_folders(data_config.TB_DIR if data_config.USE_TB else None,
                     data_config.CHECKPOINTS_DIR if data_config.USE_CHECKPOINTS else None,
-                    repo_name="Segmentation-PyTorch")
+                    repo_name="Segmentation-PyTorch",
+                    extra_files=[Path("config/data_config.py"), Path("config/model_config.py")])
     log_dir = data_config.CHECKPOINTS_DIR / "print_logs" if data_config.USE_CHECKPOINTS else None
     logger = create_logger(name, log_dir=log_dir, verbose_level=verbose_level)
     logger.info("Finished preparing tensorboard and checkpoints folders.")
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
 
-    train_data, train_labels = danger_p_loader(data_config.DATA_PATH / "Train",
-                                               get_mask_path_fn=get_mask_path,
-                                               limit=args.limit,
-                                               load_data=args.load_data,
-                                               data_preprocessing_fn=danger_p_load_data if args.load_data else None,
-                                               labels_preprocessing_fn=danger_p_load_labels if args.load_data else None)
+    train_data, train_labels = loader_fn(data_config.DATA_PATH / "Train",
+                                         get_mask_path_fn=get_mask_path,
+                                         limit=args.limit,
+                                         load_data=args.load_data,
+                                         data_preprocessing_fn=load_data_fn if args.load_data else None,
+                                         labels_preprocessing_fn=load_labels_fn if args.load_data else None)
     logger.info("Train data loaded")
 
-    val_data, val_labels = danger_p_loader(data_config.DATA_PATH / "Validation",
-                                           get_mask_path_fn=get_mask_path,
-                                           limit=args.limit,
-                                           load_data=args.load_data,
-                                           data_preprocessing_fn=danger_p_load_data if args.load_data else None,
-                                           labels_preprocessing_fn=danger_p_load_labels if args.load_data else None)
+    val_data, val_labels = loader_fn(data_config.DATA_PATH / "Validation",
+                                     get_mask_path_fn=get_mask_path,
+                                     limit=args.limit,
+                                     load_data=args.load_data,
+                                     data_preprocessing_fn=load_data_fn if args.load_data else None,
+                                     labels_preprocessing_fn=load_labels_fn if args.load_data else None)
     logger.info("Validation data loaded")
 
     # Data augmentation done on cpu.
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.HorizontalFlip(p=0.5),
         albumentations.VerticalFlip(p=0.5),
-        # albumentations.RandomRotate90(p=0.2),
-        # albumentations.CLAHE(),
         albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
         albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
                                         border_mode=cv2.BORDER_CONSTANT,  # cv2.BORDER_REFLECT_101
                                         value=0, mask_value=[1]+[0]*(data_config.OUTPUT_CLASSES-1)),
-        # albumentations.GridDistortion(p=0.5),
     ]))
 
     common_pipeline = albumentation_wrapper(albumentations.Compose([
@@ -99,8 +96,8 @@ def main():
                         train_labels,
                         model_config.BATCH_SIZE,
                         nb_workers=data_config.NB_WORKERS,
-                        data_preprocessing_fn=default_load_data if not args.load_data else None,
-                        labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                        data_preprocessing_fn=load_data_fn if not args.load_data else None,
+                        labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
                         cpu_pipeline=train_pipeline,
                         gpu_pipeline=transforms.to_tensor(),
                         shuffle=True) as train_dataloader, \
@@ -108,8 +105,8 @@ def main():
                        val_labels,
                        model_config.BATCH_SIZE,
                        nb_workers=data_config.NB_WORKERS,
-                       data_preprocessing_fn=default_load_data if not args.load_data else None,
-                       labels_preprocessing_fn=default_load_labels if not args.load_data else None,
+                       data_preprocessing_fn=load_data_fn if not args.load_data else None,
+                       labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
                        cpu_pipeline=common_pipeline,
                        gpu_pipeline=transforms.to_tensor(),
                        shuffle=False) as val_dataloader:
@@ -139,11 +136,13 @@ def main():
         if data_config.USE_TB:
             metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                             data_config.LABEL_MAP, max_batches=10, segmentation=True)
-            tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics,
-                                      data_config.LABEL_MAP, color_map=data_config.COLOR_MAP,
-                                      denormalize_img_fn=partial(denormalize_np,
-                                                                 mean=model_config.MEAN,
-                                                                 std=model_config.STD))
+            tensorboard = SegmentationTensorBoard(model,
+                                                  data_config.TB_DIR,
+                                                  metrics,
+                                                  partial(denormalize_np, mean=model_config.MEAN, std=model_config.STD),
+                                                  train_dataloader,
+                                                  val_dataloader,
+                                                  logger)
 
         best_loss = 1000
         last_checkpoint_epoch = 0
@@ -183,12 +182,12 @@ def main():
                             tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
 
                             # Metrics for the Train dataset
-                            tensorboard.write_segmentation(epoch, train_dataloader)
+                            tensorboard.write_images(epoch)
                             tensorboard.write_metrics(epoch)
                             train_acc = metrics.get_avg_acc()
 
                             # Metrics for the Validation dataset
-                            tensorboard.write_segmentation(epoch, val_dataloader, mode="Validation")
+                            tensorboard.write_images(epoch, mode="Validation")
                             tensorboard.write_metrics(epoch, mode="Validation")
                             val_acc = metrics.get_avg_acc()
 

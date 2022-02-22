@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 from argparse import ArgumentParser
@@ -7,6 +6,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+
+from config.data_config import get_data_config
 
 
 def worker(args: tuple[Path, Path, np.ndarray]):
@@ -53,23 +54,15 @@ def worker(args: tuple[Path, Path, np.ndarray]):
 def main():
     parser = ArgumentParser("Remove 'mixed' colors to have only those corresponding to a class.")
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
-    parser.add_argument("class_path", type=Path,
-                        help=("Path to a json file with the valid colors and classes."
-                              "File should be a list of {'name': 'class_name', 'color': [R, G, B]'}."))
     parser.add_argument("--output_path", "--o", default=None, type=Path,
                         help="Output path, defaults to 'data_path/../out_imgs'")
     args = parser.parse_args()
 
     data_path: Path = args.data_path
     output_path: Path = args.output_path if args.output_path else data_path.parent / "out_imgs"
-    class_path: Path = args.class_path
 
-    colors = []  # List of valid colors
-    with open(class_path) as json_file:
-        data = json.load(json_file)
-        for _key, entry in enumerate(data):
-            colors.append(entry["color"])
-    colors = np.asarray(colors)
+    data_config = get_data_config()
+    colors = data_config.IDX_TO_COLOR
 
     exts = [".jpg", ".png", ".bmp"]
     file_list = list([p for p in data_path.rglob('*') if (p.suffix in exts

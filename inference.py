@@ -25,8 +25,9 @@ from src.dataset.default_loader import (
     default_loader
 )
 from src.networks.build_network import build_model
+from src.torch_utils.utils.imgs_misc import show_img
 from src.torch_utils.utils.logger import create_logger
-from src.torch_utils.utils.misc import get_dataclass_as_dict, show_img
+from src.torch_utils.utils.misc import get_dataclass_as_dict
 from src.utils.iou import get_iou_bboxes, get_iou_masks
 
 

@@ -12,7 +12,7 @@ opencv-python
 git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodules
 ```
 
-### Config files
+## Config files
 In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.
 
 ### DataConfig
@@ -53,6 +53,8 @@ python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffic
 #### Split the data
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You can either do it by hand, or modify the `utils/split_train_val.py` script to work on your dataset.
 
+TODO: finish removing references to the classes.json to use only the data_config. In the meantime, the order of the 2 needs to match.
+You then need to create a classes.json next to the Train and Validation folder, with the names of the classes (one per line). (see [here](https://github.com/hoel-bagard/Segmentation-PyTorch/wiki/Dataset-Preprocessing) for an example)
 
 ## Train
 Once you have the environment all set up and your two config files ready, training an AI is straight forward. Just connect to the server of your choice (make sure the dependencies are installed) and run the following command: 
