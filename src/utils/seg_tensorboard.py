@@ -1,3 +1,4 @@
+from logging import Logger
 from pathlib import Path
 from typing import Callable
 
@@ -9,10 +10,10 @@ from einops import rearrange
 
 from config.data_config import get_data_config
 from src.torch_utils.utils.batch_generator import BatchGenerator
+from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.misc import clean_print
 from src.torch_utils.utils.tensorboard_template import TensorBoard
 from src.utils.draw_seg import draw_segmentation
-from src.utils.grasping_metrics import GraspingMetrics
 
 
 class SegmentationTensorBoard(TensorBoard):
@@ -29,13 +30,14 @@ class SegmentationTensorBoard(TensorBoard):
     def __init__(self,
                  model: nn.Module,
                  tb_dir: Path,
-                 metrics: GraspingMetrics,
+                 metrics: ClassificationMetrics,
                  denormalize_imgs_fn: Callable,
                  train_dataloader: BatchGenerator,
                  val_dataloader: BatchGenerator,
+                 logger: Logger,
                  write_graph: bool = True,
                  max_outputs: int = 4):
-        super().__init__(model, tb_dir, train_dataloader, val_dataloader, metrics, write_graph)
+        super().__init__(model, tb_dir, train_dataloader, val_dataloader, logger, metrics, write_graph)
         self.max_outputs = max_outputs
         self.denormalize_imgs_fn = denormalize_imgs_fn
         self.data_config = get_data_config()
@@ -47,7 +49,6 @@ class SegmentationTensorBoard(TensorBoard):
 
         Args:
             epoch (int): Current epoch
-            dataloader (BatchGenerator): The images will be sampled from this dataset
             draw_fn (callable): Function that takes in the tensor images, labels and predictions
                                 and draws on the images before returning them.
             mode (str): Either "Train" or "Validation"
@@ -69,7 +70,7 @@ class SegmentationTensorBoard(TensorBoard):
         preds = self.model(imgs)
 
         imgs = rearrange(imgs, "b c w h -> b w h c").cpu().detach().numpy()
-        imgs_batch: npt.NDArray[np.uint8] = self.denormalize_img_fn(imgs)
+        imgs_batch: npt.NDArray[np.uint8] = self.denormalize_imgs_fn(imgs)
 
         one_hot_masks_preds = rearrange(preds, "b c w h -> b w h c")
         masks_preds: np.ndarray = torch.argmax(one_hot_masks_preds, dim=-1).cpu().detach().numpy()

@@ -3,6 +3,7 @@ import sys
 import time
 import traceback
 from functools import partial
+from pathlib import Path
 from subprocess import CalledProcessError
 
 import albumentations
@@ -15,26 +16,26 @@ from config.data_config import get_data_config
 from config.model_config import get_model_config
 from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
+from src.dataset.default_loader import default_load_data as load_data_fn
+from src.dataset.default_loader import default_load_labels as load_labels_fn
 from src.dataset.default_loader import default_loader as loader_fn
-from src.dataset.default_loader import load_data_fn as load_data_fn
-from src.dataset.default_loader import load_labels_fn as load_labels_fn
 from src.losses import DiceBCELoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
-from src.torch_utils.utils.draw import denormalize_np
+from src.torch_utils.utils.imgs_misc import denormalize_np
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict
 from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.ressource_usage import resource_usage
-from src.utils.seg_tensorboard import SegmentationTensorBoard
 from src.torch_utils.utils.torch_summary import summary
 from src.torch_utils.utils.trainer import Trainer
+from src.utils.seg_tensorboard import SegmentationTensorBoard
 
 
 def main():
     parser = argparse.ArgumentParser(description="Segmentation training")
-    parser.add_argument("--limit", default=None, type=int, help="Limits the number of apparition of each class")
+    parser.add_argument("--limit", "-l", default=None, type=int, help="Limits the number of apparition of each class")
     parser.add_argument("--load_data", action="store_true", help="Loads all the videos into RAM")
     parser.add_argument("--name", type=str, default="Train",
                         help="Use it to know what a train is when using ps. Also name of the logger.")
@@ -50,7 +51,8 @@ def main():
 
     prepare_folders(data_config.TB_DIR if data_config.USE_TB else None,
                     data_config.CHECKPOINTS_DIR if data_config.USE_CHECKPOINTS else None,
-                    repo_name="Segmentation-PyTorch")
+                    repo_name="Segmentation-PyTorch",
+                    extra_files=[Path("config/data_config.py"), Path("config/model_config.py")])
     log_dir = data_config.CHECKPOINTS_DIR / "print_logs" if data_config.USE_CHECKPOINTS else None
     logger = create_logger(name, log_dir=log_dir, verbose_level=verbose_level)
     logger.info("Finished preparing tensorboard and checkpoints folders.")
@@ -139,7 +141,8 @@ def main():
                                                   metrics,
                                                   partial(denormalize_np, mean=model_config.MEAN, std=model_config.STD),
                                                   train_dataloader,
-                                                  val_dataloader)
+                                                  val_dataloader,
+                                                  logger)
 
         best_loss = 1000
         last_checkpoint_epoch = 0
@@ -179,12 +182,12 @@ def main():
                             tensorboard.write_loss(epoch, epoch_loss, mode="Validation")
 
                             # Metrics for the Train dataset
-                            tensorboard.write_segmentation(epoch, train_dataloader)
+                            tensorboard.write_images(epoch)
                             tensorboard.write_metrics(epoch)
                             train_acc = metrics.get_avg_acc()
 
                             # Metrics for the Validation dataset
-                            tensorboard.write_segmentation(epoch, val_dataloader, mode="Validation")
+                            tensorboard.write_images(epoch, mode="Validation")
                             tensorboard.write_metrics(epoch, mode="Validation")
                             val_acc = metrics.get_avg_acc()
 
