@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from config.model_config import get_model_config
-from src.torch_utils.utils.misc import show_img
+from src.torch_utils.utils.imgs_misc import show_img
 
 
 def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.ndarray, np.ndarray],

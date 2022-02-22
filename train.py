@@ -27,7 +27,7 @@ from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict
 from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.ressource_usage import resource_usage
-from src.torch_utils.utils.tensorboard import TensorBoard
+from src.utils.seg_tensorboard import SegmentationTensorBoard
 from src.torch_utils.utils.torch_summary import summary
 from src.torch_utils.utils.trainer import Trainer
 
@@ -77,14 +77,11 @@ def main():
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.HorizontalFlip(p=0.5),
         albumentations.VerticalFlip(p=0.5),
-        # albumentations.RandomRotate90(p=0.2),
-        # albumentations.CLAHE(),
         albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
         albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
                                         border_mode=cv2.BORDER_CONSTANT,  # cv2.BORDER_REFLECT_101
                                         value=0, mask_value=[1]+[0]*(data_config.OUTPUT_CLASSES-1)),
-        # albumentations.GridDistortion(p=0.5),
     ]))
 
     common_pipeline = albumentation_wrapper(albumentations.Compose([
@@ -137,11 +134,12 @@ def main():
         if data_config.USE_TB:
             metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
                                             data_config.LABEL_MAP, max_batches=10, segmentation=True)
-            tensorboard = TensorBoard(model, data_config.TB_DIR, model_config.IMAGE_SIZES, metrics,
-                                      data_config.LABEL_MAP, color_map=data_config.IDX_TO_COLOR
-                                      denormalize_img_fn=partial(denormalize_np,
-                                                                 mean=model_config.MEAN,
-                                                                 std=model_config.STD))
+            tensorboard = SegmentationTensorBoard(model,
+                                                  data_config.TB_DIR,
+                                                  metrics,
+                                                  partial(denormalize_np, mean=model_config.MEAN, std=model_config.STD),
+                                                  train_dataloader,
+                                                  val_dataloader)
 
         best_loss = 1000
         last_checkpoint_epoch = 0

@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
+from config.data_config import get_data_config
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.misc import clean_print
 from src.torch_utils.utils.tensorboard_template import TensorBoard
@@ -37,6 +38,7 @@ class SegmentationTensorBoard(TensorBoard):
         super().__init__(model, tb_dir, train_dataloader, val_dataloader, metrics, write_graph)
         self.max_outputs = max_outputs
         self.denormalize_imgs_fn = denormalize_imgs_fn
+        self.data_config = get_data_config()
 
     def write_images(self,
                      epoch: int,
@@ -77,7 +79,7 @@ class SegmentationTensorBoard(TensorBoard):
         out_imgs = draw_segmentation(imgs_batch,
                                      masks_labels,
                                      masks_preds,
-                                     color_map=self.color_map)
+                                     color_map=self.data_config.IDX_TO_COLOR)
 
         # Add them to TensorBoard
         for image_index, img in enumerate(out_imgs):
