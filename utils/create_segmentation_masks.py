@@ -9,9 +9,10 @@ import numpy as np
 from config.data_config import get_data_config
 
 
-def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128, limit: Optional[int] = None):
-    """Create the segmentation masks from the csvs."""
+def create_masks(data_path: Path, output_dir: Path, limit: Optional[int] = None, generate_full: bool = False):
+    """Create the classification and danger segmentation masks from the csvs."""
     data_config = get_data_config()
+    tile_size: int = 128
 
     csv_paths = list(data_path.rglob("*.csv"))
     nb_imgs = len(csv_paths)
@@ -28,28 +29,41 @@ def create_masks(data_path: Path, output_dir: Path, tile_size: int = 128, limit:
         # CSV coordinates start from 1, here we make then start at 0.
         coordinates = [(int(name[:2])-1, int(name[2:])-1) for name in tile_names]
         classes = [line.strip().split(',')[1] for line in annotations]
+        danger_lvls = [int(line.strip().split(',')[2]) for line in annotations]
 
         # 5 and 8 are hard coded.
         # They are different from max(coord_y) and max(coord_x) because there is some overlapp between tiles.
         mask = np.zeros((5, 8, 3), dtype=np.uint8)  # Actual mask used as label.
-        mask_full = np.zeros((5*tile_size, 8*tile_size, 3), dtype=np.uint8)  # Mask with the same size as the images.
+        danger_mask = np.zeros((5, 8), dtype=np.uint8)
+        if generate_full:
+            # Masks with the same size as the images. Used only for visualization.
+            mask_full = np.zeros((5*tile_size, 8*tile_size, 3), dtype=np.uint8)
+            danger_mask_full = np.zeros((5*tile_size, 8*tile_size), dtype=np.uint8)
         # Fuse the tiles into one image.
-        for cls, (coord_y, coord_x) in zip(classes, coordinates):
+        for cls, danger_lvl, (coord_y, coord_x) in zip(classes, danger_lvls, coordinates):
             cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "安全"
             if coord_y % 2 == 0:
                 coord_y //= 2
-                mask_full[coord_y*tile_size:coord_y*tile_size + tile_size,
-                          coord_x*tile_size:coord_x*tile_size + tile_size] = data_config.NAME_TO_COLOR[cls]
                 mask[coord_y, coord_x] = data_config.NAME_TO_COLOR[cls]
+                danger_mask[coord_y, coord_x] = danger_lvl
+                if generate_full:
+                    x_start, y_start = coord_x*tile_size, coord_y*tile_size  # Start points of the tiles (full masks)
+                    mask_full[y_start:y_start + tile_size,
+                              x_start:x_start + tile_size] = data_config.NAME_TO_COLOR[cls]
+                    danger_mask_full[y_start:y_start + tile_size,
+                                     x_start:x_start + tile_size] = int(255 * danger_lvl / data_config.MAX_DANGER_LEVEL)
 
         mask = cv2.cvtColor(mask, cv2.COLOR_RGB2BGR)
-        mask_full = cv2.cvtColor(mask_full, cv2.COLOR_RGB2BGR)
 
         rel_path = dir_path.parent.relative_to(data_path)
         output_path = output_dir / rel_path / (dir_path.name + "_mask.png")
         output_path.parent.mkdir(exist_ok=True, parents=True)
         cv2.imwrite(str(output_path), mask)
-        cv2.imwrite(str(output_path.with_stem(dir_path.name + "_full_mask")), mask_full)
+        cv2.imwrite(str(output_path.with_stem(dir_path.name + "_danger_mask")), danger_mask)
+        if generate_full:
+            mask_full = cv2.cvtColor(mask_full, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(str(output_path.with_stem(dir_path.name + "_full_mask")), mask_full)
+            cv2.imwrite(str(output_path.with_stem(dir_path.name + "_danger_full_mask")), danger_mask_full)
 
         if limit and i == limit:
             break
@@ -62,13 +76,15 @@ def main():
     parser.add_argument("data_path", type=Path, help="Path to the dataset")
     parser.add_argument("output_dir", type=Path, help="Output path")
     parser.add_argument("--limit", "-l", type=int, default=None, help="Break after N samples.")
+    parser.add_argument("--full", "-f", action="store_true", help="Also generate full size masks for visualization.")
     args = parser.parse_args()
 
     data_path = args.data_path
     output_dir = args.output_dir
     limit: int = args.limit
+    generate_full: bool = args.full
 
-    create_masks(data_path, output_dir, limit=limit)
+    create_masks(data_path, output_dir, limit=limit, generate_full=generate_full)
 
 
 if __name__ == "__main__":

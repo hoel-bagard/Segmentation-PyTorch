@@ -12,6 +12,9 @@ opencv-python
 git clone git@github.com:hoel-bagard/Segmentation-PyTorch.git --recurse-submodules
 ```
 
+## Project Goal
+TODO
+
 ## Config files
 In the config folder of this repo you will find two config template files. You need to copy them and remove the "_template" part.
 
@@ -37,18 +40,24 @@ python utils/stitch.py <path to the dataset> <path to where the stiched images w
 ```
 Example:
 ```
-python utils/stitch.py ../data/20220128 ../out
+python utils/stitch.py ../data/20220128 ../data/preprocessed
 ```
 
 #### Generate the masks
-Generate RGB segmentation masks with (make sure the classes are set in the data config file):
+There are two segmentations masks per image for this project:
+- An RGB mask used for classification.
+- A grayscale one used for danger level prediction.
+The masks are 8 by 5 pixels since this is the label precision we got.
+
+Generate segmentation masks with (make sure the classes and max danger level are set in the data config file):
 ```
 python -m utils.create_segmentation_masks <path to the dataset> <path to where the stiched masks will be saved>
 ```
 Example:
 ```
-python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffice/ ../out
+python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffice/ ../data/preprocessed
 ```
+Note: You can add the `-f` option to generate full size masks. (Not necessary, but helps a lot for visualization / to check for bugs)
 
 #### Split the data
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You can either do it by hand, or modify the `utils/split_train_val.py` script to work on your dataset.
