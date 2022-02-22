@@ -27,7 +27,7 @@ def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.nda
 
 
 if __name__ == "__main__":
-    def test_fn():
+    def _test_fn():
         from argparse import ArgumentParser
         from config.data_config import get_data_config
 
@@ -92,4 +92,4 @@ if __name__ == "__main__":
             aug_result = cv2.hconcat([aug_imgs[i], aug_mask_bgr])
             display_img = cv2.vconcat([original, aug_result])
             show_img(display_img)
-    test_fn()
+    _test_fn()
