@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-class Conv2D(torch.nn.Module):
+class Conv2D(nn.Module):
     def __init__(self, in_filters, out_filters, kernel_size, stride, padding):
         super().__init__()
         self.conv = nn.Conv2d(in_filters, out_filters,
@@ -41,6 +41,7 @@ class DangerPNet(nn.Module):
             nn.MaxPool2d(2, 2),
             Conv2D(128, 128, 1, 1, 0),
             Conv2D(128, 64, 3, 1, 1))
+
         self.segmentation = nn.Sequential(
             Conv2D(64, 128, 3, 1, 1),  # So bottle neck in the latent ?!
             nn.MaxPool2d(2, 2),
@@ -51,12 +52,12 @@ class DangerPNet(nn.Module):
             nn.Conv2d(32, self.n_classes, 3, 1, 1)
         )
         self.danger = nn.Sequential(
-            nn.Conv2d(64, 128, 3, 1, 1, bias=False), nn.BatchNorm2d(128), nn.ReLU(),
+            Conv2D(64, 128, 3, 1, 1),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(128, 128, 1, 1, 0, bias=False), nn.BatchNorm2d(128), nn.ReLU(),
-            nn.Conv2d(128, 64, 3, 1, 1, bias=False), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.Conv2d(64, 32, 3, 1, 1, bias=False), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.Conv2d(32, 32, 1, 1, 0, bias=False), nn.BatchNorm2d(32), nn.ReLU(),
+            Conv2D(128, 128, 1, 1, 0),
+            Conv2D(128, 64, 3, 1, 1),
+            Conv2D(64, 32, 3, 1, 1),
+            Conv2D(32, 32, 1, 1, 0),
             nn.Conv2d(32, self.n_danger_levels, 3, 1, 1)
         )
 
