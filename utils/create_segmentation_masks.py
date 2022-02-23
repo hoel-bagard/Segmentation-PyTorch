@@ -41,7 +41,7 @@ def create_masks(data_path: Path, output_dir: Path, limit: Optional[int] = None,
             danger_mask_full = np.zeros((5*tile_size, 8*tile_size), dtype=np.uint8)
         # Fuse the tiles into one image.
         for cls, danger_lvl, (coord_y, coord_x) in zip(classes, danger_lvls, coordinates):
-            cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "安全"
+            cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "その他"
             if coord_y % 2 == 0:
                 coord_y //= 2
                 mask[coord_y, coord_x] = data_config.NAME_TO_COLOR[cls]
