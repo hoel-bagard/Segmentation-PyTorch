@@ -20,7 +20,7 @@ In the config folder of this repo you will find two config template files. You n
 
 ### DataConfig
 Contains most of the parameters regarding the data. Most of the values in the template can be kept as they are. But some things need to be set:
-- The class names and colors for the dataset.
+- The class names and colors for the dataset (if a class is not included there, then it will be converted to "その他" when generating the masks).
 - The 3 paths usually need to be modified for each training (`DATA_PATH`, `CHECKPOINT_DIR` & `TB_DIR`). 
 
 ### ModelConfig
@@ -58,6 +58,8 @@ Example:
 python -m utils.create_segmentation_masks ../data/20220128_Reviewed_OutsideOffice/ ../data/preprocessed
 ```
 Note: You can add the `-f` option to generate full size masks. (Not necessary, but helps a lot for visualization / to check for bugs)
+
+TODO: For now the danger level mask value is not changer. But maybe there should be a -1 to have the lowest level be 0.
 
 #### Split the data
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You can either do it by hand, or modify the `utils/split_train_val.py` script to work on your dataset.

@@ -78,12 +78,10 @@ def main():
     # Data augmentation done on cpu.
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.HorizontalFlip(p=0.5),
-        albumentations.VerticalFlip(p=0.5),
         albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
         albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
         albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
-                                        border_mode=cv2.BORDER_CONSTANT,  # cv2.BORDER_REFLECT_101
-                                        value=0, mask_value=[1]+[0]*(data_config.OUTPUT_CLASSES-1)),
+                                        border_mode=cv2.BORDER_CONSTANT, value=0),
     ]))
 
     common_pipeline = albumentation_wrapper(albumentations.Compose([

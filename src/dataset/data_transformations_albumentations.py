@@ -17,11 +17,10 @@ def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.nda
         """Apply transformations on a batch of data."""
         out_sizes = transform(image=imgs[0])["image"].shape[:2]
         out_imgs = np.empty((imgs.shape[0], *out_sizes, 3), dtype=np.float32)
-        out_labels = np.empty((imgs.shape[0], *out_sizes, labels.shape[-1]), dtype=np.uint8)
+        out_labels = labels  # No changes to the labels for this project.  (Should be fine as long as no random crop)
         for i, (img, label) in enumerate(zip(imgs, labels)):
             transformed = transform(image=img, mask=label)
             out_imgs[i] = transformed["image"]
-            out_labels[i] = transformed["mask"]
         return out_imgs, out_labels
     return albumentation_transform_fn
 

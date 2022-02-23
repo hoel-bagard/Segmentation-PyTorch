@@ -82,34 +82,48 @@ def danger_p_load_data(data: Path | list[Path]) -> np.ndarray:
 
 def danger_p_load_labels(label_paths: Path | list[Path],
                          size: tuple[int, int],
-                         idx_to_color: npt.NDArray[np.uint8]) -> np.ndarray:
+                         idx_to_color: npt.NDArray[np.uint8],
+                         max_danger_lvl: int) -> np.ndarray:
     """Function that loads segmentation mask(s) from path(s).
 
     Args:
-        data (Path, list[Path]): Either a mask path or a batch of mask paths, and return the loaded mask(s)
+        label_paths (Path, list[Path]): Either a mask path or a batch of mask paths, and return the loaded mask(s)
         size (tuple[int, int]): The width and height of the network's output.
         idx_to_color (np.ndarray): Array mapping an int (index) to a color.
+        max_danger_lvl (int): Max danger level that can appear in the danger seg mask.
 
     Returns:
         Segmentation mask or batch of segmentation masks.
     """
-
-    # Handle missing class with sono ta. Resize to x2
-
     if isinstance(label_paths, Path):
-        mask = cv2.imread(str(label_paths))
-        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-        mask = cv2.resize(mask, size, interpolation=cv2.INTER_NEAREST_EXACT)
+        cls_mask = cv2.imread(str(label_paths))
+        cls_mask = cv2.cvtColor(cls_mask, cv2.COLOR_BGR2RGB)
+        cls_mask = cv2.resize(cls_mask, size, interpolation=cv2.INTER_NEAREST_EXACT)
 
         # Transform the mask into a one hot mask
         width, height = size
-        one_hot_mask = np.zeros((height, width, len(idx_to_color)))
+        one_hot_cls_mask = np.zeros((height, width, len(idx_to_color)))
         for key in range(len(idx_to_color)):
-            one_hot_mask[:, :, key][(mask == idx_to_color[key]).all(axis=-1)] = 1
+            one_hot_cls_mask[:, :, key][(cls_mask == idx_to_color[key]).all(axis=-1)] = 1
 
-        return one_hot_mask
+        # Dirty and hardcoded for the project.
+        danger_mask_path = label_paths.with_stem("_".join(label_paths.stem.split("_")[:-1]) + "_danger_mask")
+        danger_mask = cv2.imread(str(danger_mask_path), 0)
+        danger_mask = cv2.resize(danger_mask, size, interpolation=cv2.INTER_NEAREST_EXACT)
+
+        one_hot_danger_mask = np.zeros((height, width, max_danger_lvl))
+        for key in range(max_danger_lvl):
+            one_hot_danger_mask[..., key][danger_mask == key] = 1
+
+        # Assume that there are always more classes than danger levels.
+        # Pad the danger mask to be able to stack them (makes it easier to handle than a tuple with the existing code)
+        one_hot_danger_mask = np.pad(one_hot_danger_mask, ((0, 0), (0, 0), (0, len(idx_to_color)-max_danger_lvl)))
+        one_hot_masks = np.stack((one_hot_cls_mask, one_hot_danger_mask), axis=-1)
+
+        return one_hot_masks
     else:
-        img_masks = np.asarray([danger_p_load_labels(image_path, size, idx_to_color) for image_path in label_paths])
+        img_masks = np.asarray([danger_p_load_labels(label_path, size, idx_to_color, max_danger_lvl)
+                                for label_path in label_paths])
         return img_masks
 
 
@@ -135,6 +149,7 @@ if __name__ == "__main__":
 
         from config.data_config import get_data_config
         from config.model_config import get_model_config
+        from src.torch_utils.utils.imgs_misc import show_img
 
         parser = ArgumentParser(description=("Script to test the label loading function. "
                                              "Run with 'python -m src.dataset.danger_p_loader <path>'"))
@@ -147,12 +162,22 @@ if __name__ == "__main__":
 
         load_labels = partial(danger_p_load_labels,
                               size=model_config.OUTPUT_SIZES,
-                              idx_to_color=data_config.IDX_TO_COLOR)
+                              idx_to_color=data_config.IDX_TO_COLOR,
+                              max_danger_lvl=data_config.MAX_DANGER_LEVEL)
 
-        mask = load_labels(mask_path)
-        print(mask.shape)
-        # To show the mask, modify the function to return the mask instead of the one hot.
-        # mask = cv2.cvtColor(mask, cv2.COLOR_RGB2BGR)
-        # from src.torch_utils.utils.misc import show_img
-        # show_img(mask)
+        one_hot_masks = load_labels(mask_path)
+        oh_cls_mask, oh_danger_mask = one_hot_masks[..., 0], one_hot_masks[..., 1]
+
+        cls_mask = np.argmax(oh_cls_mask, axis=-1)
+        cls_mask_rgb = np.asarray(data_config.IDX_TO_COLOR[cls_mask], dtype=np.uint8)
+        cls_mask_bgr = cv2.cvtColor(cls_mask_rgb, cv2.COLOR_RGB2BGR)
+        print(f"{oh_cls_mask.shape=}, {cls_mask.shape=}")
+        show_img(cls_mask_bgr)
+
+        oh_danger_mask = oh_danger_mask[..., :data_config.MAX_DANGER_LEVEL]  # Remove padding
+        danger_mask = np.argmax(oh_danger_mask, axis=-1)
+        # Just make it possible to tell the levels from one another.
+        danger_mask = (255 * danger_mask / data_config.MAX_DANGER_LEVEL).astype(np.uint8)
+        print(f"{oh_danger_mask.shape=}, {danger_mask.shape=}")
+        show_img(danger_mask)
     _test_load_labels()
