@@ -76,19 +76,20 @@ def main():
     logger.info("Validation data loaded")
 
     # Data augmentation done on cpu.
-    augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
-        albumentations.HorizontalFlip(p=0.5),
-        albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
-        albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
-        albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
-                                        border_mode=cv2.BORDER_CONSTANT, value=0),
-    ]))
+    # augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
+    #     albumentations.HorizontalFlip(p=0.5),
+    #     albumentations.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
+    #     albumentations.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.5),
+    #     albumentations.ShiftScaleRotate(scale_limit=0.05, rotate_limit=10, shift_limit=0.06, p=0.5,
+    #                                     border_mode=cv2.BORDER_CONSTANT, value=0),
+    # ]))
 
     common_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.Normalize(mean=model_config.MEAN, std=model_config.STD, max_pixel_value=255.0, p=1.0),
         albumentations.Resize(*model_config.IMAGE_SIZES, interpolation=cv2.INTER_LINEAR)
     ]))
-    train_pipeline = transforms.compose_transformations((augmentation_pipeline, common_pipeline))
+    # train_pipeline = transforms.compose_transformations((augmentation_pipeline, common_pipeline))
+    train_pipeline = common_pipeline
 
     with BatchGenerator(train_data,
                         train_labels,

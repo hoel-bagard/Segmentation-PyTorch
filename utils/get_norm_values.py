@@ -13,32 +13,26 @@ def main():
 
     data_path: Path = args.data_path
 
-    # This assumes that the masks' paths contain either "mask" or "seg" (and that the main image does not).
-    exts = [".jpg", ".png", ".tiff"]
-    img_path_list = list([p for p in data_path.rglob('*') if p.suffix in exts
-                          and "seg" not in str(p) and "mask" not in str(p)])
-
-    mean, std = np.zeros(3), np.zeros(3)
+    # Get the grayscale images (masks are in .png)
+    img_path_list = list([p for p in data_path.rglob("*.jpg") if "disp" not in p.stem])
     nb_imgs = len(img_path_list)
+    res_dict = {"img_mean": 0., "img_std": 0., "disp_mean": 0., "disp_std": 0.}
+
     for i, img_path in enumerate(img_path_list, start=1):
         msg = f"Processing image {img_path.name}    ({i}/{nb_imgs})"
         print(msg + ' ' * (shutil.get_terminal_size(fallback=(156, 38)).columns - len(msg)), end='\r')
 
-        img = cv2.imread(str(img_path))
-        mean[0] += np.mean(img[..., 2])
-        mean[1] += np.mean(img[..., 1])
-        mean[2] += np.mean(img[..., 0])
+        img = cv2.imread(str(img_path), 0)
+        res_dict["img_mean"] += np.mean(img)
+        res_dict["img_std"] += np.std(img)
 
-        std[0] += np.std(img[..., 2])
-        std[1] += np.std(img[..., 1])
-        std[2] += np.std(img[..., 0])
+        disp = cv2.imread(str(img_path.with_stem(img_path.stem + "_disp")), 0)
+        res_dict["disp_mean"] += np.mean(disp)
+        res_dict["disp_std"] += np.std(disp)
 
-    mean /= nb_imgs
-    std /= nb_imgs
-    np.set_printoptions(precision=3)
-    print(f"Mean: {mean}, std: {std}    (RGB format)")
-    print("Divided by 255:")
-    print(f"Mean: {mean/255}, std: {std/255}    (RGB format)")
+    print("\n")
+    for value_name, value in res_dict.items():
+        print(f"{value_name}: {value / nb_imgs:.3f}   (Divided by 255: {value / (255*nb_imgs):.3f})")
 
 
 if __name__ == "__main__":
