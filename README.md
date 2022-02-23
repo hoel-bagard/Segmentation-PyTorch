@@ -8,6 +8,7 @@ Things I want to change:
 - Why is the model returning the latent ?
 - The model itself makes little sense imho.
 - The loss. (although I haven't much experience with losses and tiny masks)
+- Why is the network's output 16x10 and not 8x5 ?!
 
 
 ## Installation
