@@ -75,8 +75,6 @@ def draw_segmentation_danger_p(imgs: npt.NDArray[np.uint8],
         disp = cv2.cvtColor(img[..., 1], cv2.COLOR_GRAY2RGB)  # The disparity map
 
         out_img_top = cv2.hconcat((grayscale_img, disp))
-        print(masks.shape)
-        print(text_img.shape)
         out_img_bot = cv2.hconcat((masks, text_img))
         out_img = cv2.vconcat((out_img_top, out_img_bot))
         if size:

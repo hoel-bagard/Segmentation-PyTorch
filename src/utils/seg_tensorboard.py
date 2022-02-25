@@ -67,16 +67,21 @@ class SegmentationTensorBoard(TensorBoard):
         imgs, one_hot_masks_labels = batch[0][:self.max_outputs], batch[1][:self.max_outputs]
 
         # Get some predictions
-        preds = self.model(imgs)
+        cls_oh_preds, danger_oh_preds = self.model(imgs)
 
         imgs = rearrange(imgs, "b c w h -> b w h c").cpu().detach().numpy()
         imgs_batch: npt.NDArray[np.uint8] = self.denormalize_imgs_fn(imgs)
 
-        # one_hot_masks_preds = rearrange(preds, "b c w h -> b w h c")
-        masks_preds: np.ndarray = torch.argmax(preds, dim=-1).cpu().detach().numpy()
-        # one_hot_masks_labels = rearrange(labels, "b c w h -> b w h c")
-        masks_labels: np.ndarray = torch.argmax(one_hot_masks_labels, dim=-1).cpu().detach().numpy()
+        cls_masks_labels: np.ndarray = torch.argmax(one_hot_masks_labels[..., 0], dim=-1).cpu().detach().numpy()
+        danger_masks_labels: np.ndarray = torch.argmax(one_hot_masks_labels[..., 1], dim=-1).cpu().detach().numpy()
 
+        cls_oh_preds = rearrange(cls_oh_preds, "b c w h -> b w h c")
+        cls_masks_preds: np.ndarray = torch.argmax(cls_oh_preds, dim=-1).cpu().detach().numpy()
+        danger_oh_preds = rearrange(danger_oh_preds, "b c w h -> b w h c")
+        danger_masks_preds: np.ndarray = torch.argmax(danger_oh_preds, dim=-1).cpu().detach().numpy()
+
+        masks_labels = np.stack((cls_masks_labels, danger_masks_labels), axis=-1)
+        masks_preds = np.stack((cls_masks_preds, danger_masks_preds), axis=-1)
         out_imgs = draw_segmentation_danger_p(imgs_batch,
                                               masks_labels,
                                               masks_preds,
