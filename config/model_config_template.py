@@ -8,7 +8,8 @@ class ModelConfig:
     # Training parameters
     BATCH_SIZE = 32
     MAX_EPOCHS = 500
-    LR = 1e-3
+    START_LR = 1e-3
+    END_LR = 5e-6
     LR_DECAY = 0.998
     WEIGHT_DECAY = 1e-2   # Weight decay for the optimizer
 

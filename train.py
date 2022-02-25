@@ -133,10 +133,11 @@ def main():
         logger.info("")
 
         loss_fn = DangerPLoss(data_config.MAX_DANGER_LEVEL)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
+        optimizer = torch.optim.AdamW(model.parameters(),
+                                      lr=model_config.START_LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
-        scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=5e-6)
+        scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=model_config.END_LR)
         # TODO: Try this https://github.com/rwightman/pytorch-image-models/blob/master/timm/scheduler/cosine_lr.py
 
         if data_config.USE_TB:
