@@ -30,7 +30,6 @@ def build_model(model_type: type,
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    print(kwargs)
     model = model_type(**kwargs)
 
     if model_path is not None:
