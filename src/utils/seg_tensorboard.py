@@ -13,7 +13,7 @@ from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.misc import clean_print
 from src.torch_utils.utils.tensorboard_template import TensorBoard
-from src.utils.draw_seg import draw_segmentation
+from src.utils.draw_seg import draw_segmentation_danger_p
 
 
 class SegmentationTensorBoard(TensorBoard):
@@ -64,7 +64,7 @@ class SegmentationTensorBoard(TensorBoard):
         batch = dataloader.next_batch()
         dataloader.reset_epoch()  # Reset the epoch to not cause issues for other functions
 
-        imgs, labels = batch[0][:self.max_outputs], batch[1][:self.max_outputs]
+        imgs, one_hot_masks_labels = batch[0][:self.max_outputs], batch[1][:self.max_outputs]
 
         # Get some predictions
         preds = self.model(imgs)
@@ -72,15 +72,16 @@ class SegmentationTensorBoard(TensorBoard):
         imgs = rearrange(imgs, "b c w h -> b w h c").cpu().detach().numpy()
         imgs_batch: npt.NDArray[np.uint8] = self.denormalize_imgs_fn(imgs)
 
-        one_hot_masks_preds = rearrange(preds, "b c w h -> b w h c")
-        masks_preds: np.ndarray = torch.argmax(one_hot_masks_preds, dim=-1).cpu().detach().numpy()
-        one_hot_masks_labels = rearrange(labels, "b c w h -> b w h c")
+        # one_hot_masks_preds = rearrange(preds, "b c w h -> b w h c")
+        masks_preds: np.ndarray = torch.argmax(preds, dim=-1).cpu().detach().numpy()
+        # one_hot_masks_labels = rearrange(labels, "b c w h -> b w h c")
         masks_labels: np.ndarray = torch.argmax(one_hot_masks_labels, dim=-1).cpu().detach().numpy()
 
-        out_imgs = draw_segmentation(imgs_batch,
-                                     masks_labels,
-                                     masks_preds,
-                                     color_map=self.data_config.IDX_TO_COLOR)
+        out_imgs = draw_segmentation_danger_p(imgs_batch,
+                                              masks_labels,
+                                              masks_preds,
+                                              self.data_config.IDX_TO_COLOR,
+                                              self.data_config.MAX_DANGER_LEVEL)
 
         # Add them to TensorBoard
         for image_index, img in enumerate(out_imgs):

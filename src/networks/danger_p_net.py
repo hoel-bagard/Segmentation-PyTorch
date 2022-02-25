@@ -9,7 +9,7 @@ class Conv2D(nn.Module):
                               kernel_size=kernel_size, stride=stride, padding=padding,
                               bias=False)
         self.batch_norm = nn.BatchNorm2d(out_filters)
-        self.activation = nn.Relu()
+        self.activation = nn.ReLU()
 
     def forward(self, x):
         x = self.conv(x)
@@ -20,7 +20,7 @@ class Conv2D(nn.Module):
 
 
 class DangerPNet(nn.Module):
-    def __init__(self, n_classes: int, n_danger_levels: int):
+    def __init__(self, output_classes: int, max_danger_level: int, **kwargs):
         """Instanciate the network.
 
         Args:
@@ -28,8 +28,8 @@ class DangerPNet(nn.Module):
             n_danger_levels: The number of danger levels.
         """
         super().__init__()
-        self.n_classes = n_classes
-        self.n_danger_levels = n_danger_levels
+        self.n_classes = output_classes
+        self.n_danger_levels = max_danger_level
 
         self.backend = nn.Sequential(
             Conv2D(2, 32, 3, 1, 1),
@@ -61,6 +61,6 @@ class DangerPNet(nn.Module):
             nn.Conv2d(32, self.n_danger_levels, 3, 1, 1)
         )
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         latent = self.backend(x)
-        return self.segmentation(latent), self.danger(latent), latent
+        return self.segmentation(latent), self.danger(latent)

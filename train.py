@@ -19,7 +19,7 @@ from src.dataset.danger_p_loader import danger_p_load_labels as load_labels_fn
 from src.dataset.danger_p_loader import danger_p_loader as loader_fn
 from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_path
-from src.losses import DiceBCELoss
+from src.losses import DangerPLoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
 from src.torch_utils.utils.classification_metrics import ClassificationMetrics
@@ -91,12 +91,17 @@ def main():
     # train_pipeline = transforms.compose_transformations((augmentation_pipeline, common_pipeline))
     train_pipeline = common_pipeline
 
+    load_danger_labels_fn = partial(load_labels_fn,
+                                    size=model_config.OUTPUT_SIZES,
+                                    idx_to_color=data_config.IDX_TO_COLOR,
+                                    max_danger_lvl=data_config.MAX_DANGER_LEVEL)
+
     with BatchGenerator(train_data,
                         train_labels,
                         model_config.BATCH_SIZE,
                         nb_workers=data_config.NB_WORKERS,
                         data_preprocessing_fn=load_data_fn if not args.load_data else None,
-                        labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
+                        labels_preprocessing_fn=load_danger_labels_fn if not args.load_data else None,
                         cpu_pipeline=train_pipeline,
                         gpu_pipeline=transforms.to_tensor(),
                         shuffle=True) as train_dataloader, \
@@ -105,7 +110,7 @@ def main():
                        model_config.BATCH_SIZE,
                        nb_workers=data_config.NB_WORKERS,
                        data_preprocessing_fn=load_data_fn if not args.load_data else None,
-                       labels_preprocessing_fn=load_labels_fn if not args.load_data else None,
+                       labels_preprocessing_fn=load_danger_labels_fn if not args.load_data else None,
                        cpu_pipeline=common_pipeline,
                        gpu_pipeline=transforms.to_tensor(),
                        shuffle=False) as val_dataloader:
@@ -114,7 +119,9 @@ def main():
               f"{len(val_dataloader)} validation data", flush=True)
 
         print("Building model. . .", end="\r")
-        model = build_model(model_config.MODEL, data_config.OUTPUT_CLASSES, **get_dataclass_as_dict(model_config))
+        model = build_model(model_config.MODEL,
+                            **get_dataclass_as_dict(data_config),
+                            **get_dataclass_as_dict(model_config))
 
         logger.info(f"{'-'*24} Starting train {'-'*24}")
         logger.info("From command : " + ' '.join(sys.argv))
@@ -125,7 +132,7 @@ def main():
             logger.info(line)
         logger.info("")
 
-        loss_fn = DiceBCELoss()
+        loss_fn = DangerPLoss(data_config.MAX_DANGER_LEVEL)
         optimizer = torch.optim.AdamW(model.parameters(), lr=model_config.LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
@@ -182,15 +189,15 @@ def main():
 
                             # Metrics for the Train dataset
                             tensorboard.write_images(epoch)
-                            tensorboard.write_metrics(epoch)
-                            train_acc = metrics.get_avg_acc()
+                            # tensorboard.write_metrics(epoch)
+                            # train_acc = metrics.get_avg_acc()
 
                             # Metrics for the Validation dataset
                             tensorboard.write_images(epoch, mode="Validation")
-                            tensorboard.write_metrics(epoch, mode="Validation")
-                            val_acc = metrics.get_avg_acc()
+                            # tensorboard.write_metrics(epoch, mode="Validation")
+                            # val_acc = metrics.get_avg_acc()
 
-                            logger.info(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}")
+                            # logger.info(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}")
 
                         logger.info(f"Validation loss: {epoch_loss:.5e}  -  "
                                     f"Took {time.perf_counter() - validation_start_time:.5f}s")

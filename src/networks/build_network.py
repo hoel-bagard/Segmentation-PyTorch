@@ -4,21 +4,24 @@ from typing import Optional
 import torch
 
 from .convnext_unet import UConvNeXt
+from .danger_p_net import DangerPNet
 from .unet import UDarkNet
 
 
 class ModelHelper:
     UConvNeXt = UConvNeXt
     UDarkNet = UDarkNet
+    DangerPNet = DangerPNet
 
 
-def build_model(model_type: type, output_classes: bool, model_path: Optional[Path] = None,
-                eval_mode: bool = False, **kwargs):
+def build_model(model_type: type,
+                model_path: Optional[Path] = None,
+                eval_mode: bool = False,
+                **kwargs):
     """Function that instanciates the given model.
 
     Args:
         model_type (type): Class of the model to instanciates
-        output_classes (int): Number of classes in the dataset
         model_path (Path): If given, then the weights will be loaded from that checkpoint
         eval (bool): Whether the model will be used for evaluation or not
 
@@ -27,7 +30,7 @@ def build_model(model_type: type, output_classes: bool, model_path: Optional[Pat
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    kwargs["output_classes"] = output_classes
+    print(kwargs)
     model = model_type(**kwargs)
 
     if model_path is not None:

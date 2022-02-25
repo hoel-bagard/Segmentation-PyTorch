@@ -4,6 +4,7 @@ from typing import Callable
 import cv2
 import numpy as np
 import torch
+from einops import rearrange
 
 NumpyOrTensorType = torch.Tensor | np.ndarray
 
@@ -76,7 +77,7 @@ def to_tensor():
         # torch image: C X H X W
 
         imgs = imgs.transpose((0, 3, 1, 2))
-        labels = labels.transpose((0, 3, 1, 2))
+        # labels = rearrange(labels, "b w h c m -> b m c w h")
         return torch.from_numpy(imgs).float().to(device), torch.from_numpy(labels).to(device)
     return to_tensor_fn
 
