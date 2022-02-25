@@ -16,9 +16,9 @@ class ModelConfig:
     IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (1024, 640))  # All images will be resized to this size
     OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (16, 10))  # Output size of the network
     # The mean and std used to normalize the dataset.
-    # (Actual values are the commented out ones. Not used for historical reasons.)
-    MEAN: tuple[float, float] = field(default_factory=lambda: (0.5, 0.5))  # (0.494, 0.037))
-    STD: tuple[float, float] = field(default_factory=lambda: (0.5, 0.5))  # (0.266, 0.074))
+    # (Actual values are the commented out ones.
+    MEAN: tuple[float, float] = field(default_factory=lambda: (0.494, 0.037))
+    STD: tuple[float, float] = field(default_factory=lambda: (0.266, 0.074))
 
     # Network part
     MODEL = ModelHelper.UDarkNet
