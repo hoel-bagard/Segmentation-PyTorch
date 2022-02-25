@@ -96,12 +96,12 @@ def danger_p_load_labels(label_paths: Path | list[Path],
         Segmentation mask or batch of segmentation masks.
     """
     if isinstance(label_paths, Path):
+        height, width = size
         cls_mask = cv2.imread(str(label_paths))
         cls_mask = cv2.cvtColor(cls_mask, cv2.COLOR_BGR2RGB)
-        cls_mask = cv2.resize(cls_mask, size, interpolation=cv2.INTER_NEAREST_EXACT)
+        cls_mask = cv2.resize(cls_mask, (width, height), interpolation=cv2.INTER_NEAREST_EXACT)
 
         # Transform the mask into a one hot mask
-        width, height = size
         one_hot_cls_mask = np.zeros((height, width, len(idx_to_color)))
         for key in range(len(idx_to_color)):
             one_hot_cls_mask[:, :, key][(cls_mask == idx_to_color[key]).all(axis=-1)] = 1
@@ -109,7 +109,7 @@ def danger_p_load_labels(label_paths: Path | list[Path],
         # Dirty and hardcoded for the project.
         danger_mask_path = label_paths.with_stem("_".join(label_paths.stem.split("_")[:-1]) + "_danger_mask")
         danger_mask = cv2.imread(str(danger_mask_path), 0)
-        danger_mask = cv2.resize(danger_mask, size, interpolation=cv2.INTER_NEAREST_EXACT)
+        danger_mask = cv2.resize(danger_mask, (width, height), interpolation=cv2.INTER_NEAREST_EXACT)
 
         one_hot_danger_mask = np.zeros((height, width, max_danger_lvl))
         for key in range(max_danger_lvl):

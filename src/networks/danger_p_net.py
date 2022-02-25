@@ -95,11 +95,11 @@ class DangerPConvNeXt(nn.Module):
         self.backbone = ConvNeXt(2, depths=[3, 3, 9, 3], dims=channels)
 
         self.classification_head = nn.Sequential(
-            Conv2D(channels[-1], 64, 3, 1, 1),
+            Conv2D(channels[-1], 64, 3, 2, 1),
             nn.Conv2d(64, self.n_classes, 3, 1, 1)
         )
         self.danger_head = nn.Sequential(
-            Conv2D(channels[-1], 64, 3, 1, 1),
+            Conv2D(channels[-1], 64, 3, 2, 1),
             nn.Conv2d(64, self.n_danger_levels, 3, 1, 1)
         )
 

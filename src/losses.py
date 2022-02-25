@@ -1,8 +1,8 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
 from torch.nn.functional import binary_cross_entropy
+
+from einops import rearrange
 
 
 class DiceBCELoss(nn.Module):
@@ -47,8 +47,9 @@ class DangerPLoss(nn.Module):
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        cls_preds = preds[0]
-        danger_preds = preds[1]
+        # TODO: The way the dual masks are handled is a mess. Find a better solution.
+        cls_preds = rearrange(preds[0], "b c w h -> b w h c")
+        danger_preds = rearrange(preds[1], "b c w h -> b w h c")
 
         oh_cls_labels = labels[..., 0]
         oh_danger_labels = labels[..., 1]
