@@ -5,7 +5,6 @@ from torch import nn
 
 from src.layers.trunc import trunc_normal_
 from src.networks.convnext import ConvNeXt
-from src.networks.layers import ConvTranspose, SkipConnection
 
 
 class Conv2D(nn.Module):
@@ -31,7 +30,7 @@ class DangerPNet(nn.Module):
 
         Args:
             output_classes: The number of classes.
-            max_danger_levels: The number of danger levels.
+            max_danger_level: The number of danger levels.
         """
         super().__init__()
         self.n_classes = output_classes

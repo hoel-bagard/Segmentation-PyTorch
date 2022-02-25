@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.nn.functional import binary_cross_entropy
-
 from einops import rearrange
+from torch.nn.functional import binary_cross_entropy
 
 
 class DiceBCELoss(nn.Module):

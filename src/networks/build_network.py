@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 
 from .convnext_unet import UConvNeXt
-from .danger_p_net import DangerPNet, DangerPConvNeXt
+from .danger_p_net import DangerPConvNeXt, DangerPNet
 from .unet import UDarkNet
 
 
