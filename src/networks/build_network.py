@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 
 from .convnext_unet import UConvNeXt
-from .danger_p_net import DangerPNet
+from .danger_p_net import DangerPNet, DangerPConvNeXt
 from .unet import UDarkNet
 
 
@@ -12,6 +12,7 @@ class ModelHelper:
     UConvNeXt = UConvNeXt
     UDarkNet = UDarkNet
     DangerPNet = DangerPNet
+    DangerPConvNeXt = DangerPConvNeXt
 
 
 def build_model(model_type: type,

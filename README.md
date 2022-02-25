@@ -1,14 +1,8 @@
 # Segmentation-PyTorch
 
 Things I want to change:
-- The standardization values.
-- The way the disparity maps are assembled.
 - Clean the disparity maps as a preprocessing step.
-- The initialisation of the network. (currently there isn't any)
-- Why is the model returning the latent ?
-- The model itself makes little sense imho.
 - The loss. (although I haven't much experience with losses and tiny masks)
-- Why is the network's output 16x10 and not 8x5 ?!
 
 
 ## Installation

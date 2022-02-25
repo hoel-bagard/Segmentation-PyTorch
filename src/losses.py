@@ -47,13 +47,12 @@ class DangerPLoss(nn.Module):
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        cls_preds = preds[0].contiguous().view(-1).to(torch.float32)
-        danger_preds = preds[1].contiguous().view(-1).to(torch.float32)
+        cls_preds = preds[0]
+        danger_preds = preds[1]
 
-        oh_cls_labels = labels[..., 0].contiguous().view(-1).to(torch.float32)
+        oh_cls_labels = labels[..., 0]
         oh_danger_labels = labels[..., 1]
         oh_danger_labels = oh_danger_labels[..., :self.max_danger_lvl]  # Remove padding
-        oh_danger_labels = oh_danger_labels.contiguous().view(-1).to(torch.float32)
 
         cls_loss = self.loss_fn(cls_preds, oh_cls_labels)
         danger_loss = self.loss_fn(danger_preds, oh_danger_labels)
