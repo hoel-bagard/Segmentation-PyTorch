@@ -44,8 +44,8 @@ class DataConfig:
     # Build maps between ids, names and colors
     IDX_TO_COLOR = np.asarray([cls.color for cls in classes])  # Maps an int to a color (corresponding to a class)
     NAME_TO_COLOR = {cls.name: cls.color for i, cls in enumerate(classes)}   # Maps a class name to its color
-    LABEL_MAP = {i: cls.name for i, cls in enumerate(classes)}   # Maps an int to a class name
-    OUTPUT_CLASSES = len(LABEL_MAP)
+    IDX_TO_NAME = {i: cls.name for i, cls in enumerate(classes)}   # Maps an int to a class name. Old "LABEL_MAP"
+    OUTPUT_CLASSES: int = len(IDX_TO_NAME)
     MAX_DANGER_LEVEL: int = 5  # Specific to this project.
 
 

@@ -22,7 +22,6 @@ from src.dataset.dataset_specific_fn import default_get_mask_path as get_mask_pa
 from src.losses import DangerPLoss
 from src.networks.build_network import build_model
 from src.torch_utils.utils.batch_generator import BatchGenerator
-from src.torch_utils.utils.classification_metrics import ClassificationMetrics
 from src.torch_utils.utils.imgs_misc import denormalize_np
 from src.torch_utils.utils.logger import create_logger
 from src.torch_utils.utils.misc import get_dataclass_as_dict
@@ -31,6 +30,7 @@ from src.torch_utils.utils.ressource_usage import resource_usage
 from src.torch_utils.utils.torch_summary import summary
 from src.torch_utils.utils.trainer import Trainer
 from src.utils.seg_tensorboard import SegmentationTensorBoard
+from src.utils.seg_metrics import SegmentationMetrics
 
 
 def main():
@@ -136,13 +136,12 @@ def main():
         optimizer = torch.optim.AdamW(model.parameters(),
                                       lr=model_config.START_LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=model_config.LR_DECAY)
         scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=model_config.END_LR)
         # TODO: Try this https://github.com/rwightman/pytorch-image-models/blob/master/timm/scheduler/cosine_lr.py
 
         if data_config.USE_TB:
-            metrics = ClassificationMetrics(model, train_dataloader, val_dataloader,
-                                            data_config.LABEL_MAP, max_batches=10, segmentation=True)
+            metrics = SegmentationMetrics(model, train_dataloader, val_dataloader,
+                                          data_config.IDX_TO_NAME, data_config.MAX_DANGER_LEVEL, max_batches=10)
             tensorboard = SegmentationTensorBoard(model,
                                                   data_config.TB_DIR,
                                                   metrics,
@@ -177,8 +176,8 @@ def main():
 
                 # Validation and other metrics
                 if epoch % data_config.VAL_FREQ == 0 and epoch >= data_config.RECORD_START:
-                    # if data_config.USE_TB:
-                    #     tensorboard.write_weights_grad(epoch)
+                    if data_config.USE_TB:
+                        tensorboard.write_weights_grad(epoch)
                     with torch.no_grad():
                         validation_start_time = time.perf_counter()
                         epoch_loss = trainer.val_epoch()
@@ -190,15 +189,18 @@ def main():
 
                             # Metrics for the Train dataset
                             tensorboard.write_images(epoch)
-                            # tensorboard.write_metrics(epoch)
-                            # train_acc = metrics.get_avg_acc()
+                            tensorboard.write_metrics(epoch)
+                            train_cls_acc, train_danger_acc = metrics.get_avg_acc()
 
                             # Metrics for the Validation dataset
                             tensorboard.write_images(epoch, mode="Validation")
-                            # tensorboard.write_metrics(epoch, mode="Validation")
-                            # val_acc = metrics.get_avg_acc()
+                            tensorboard.write_metrics(epoch, mode="Validation")
+                            val_cls_acc, val_danger_acc = metrics.get_avg_acc()
 
-                            # logger.info(f"Train accuracy: {train_acc:.3f}  -  Validation accuracy: {val_acc:.3f}")
+                            logger.info(f"Train classification accuracy: {train_cls_acc:.3f}  -  "
+                                        f"Validation classification accuracy: {val_cls_acc:.3f}")
+                            logger.info(f"Train danger accuracy: {train_danger_acc:.3f}  -  "
+                                        f"Validation danger accuracy: {val_danger_acc:.3f}")
 
                         logger.info(f"Validation loss: {epoch_loss:.5e}  -  "
                                     f"Took {time.perf_counter() - validation_start_time:.5f}s")

@@ -5,6 +5,14 @@ Things I want to change:
 - The loss. (although I haven't much experience with losses and tiny masks)
 
 
+yay -S otf-takao
+
+
+Code was not meant, at all, to handle a double segmentation task. Sorry =(
+
+In the code, "classification" refers to the object/class classification part. And danger refers to the danger level classification.
+
+
 ## Installation
 
 ### Dependencies
