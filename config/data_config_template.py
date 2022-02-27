@@ -16,11 +16,13 @@ class SegClass(NamedTuple):
 # - 2 classes can be mapped to the same color.
 #   In that case, the first to appear will be used when going from RGB to class name.
 #   Can be usefull with things like nice_cat, BadCat --> cat
+# - There should be a background / other class with the color black (used when shifting/rotating for example)
 classes = frozenset([SegClass("cat", (0, 255, 0)),
                      SegClass("nice_cat", (0, 255, 0)),
                      SegClass("BadCat", (0, 255, 0)),
                      SegClass("Dog", (34, 113, 179)),
-                     SegClass("Human", (144, 70, 132))
+                     SegClass("Human", (144, 70, 132)),
+                     SegClass("Background", (0, 0, 0))
                      ])
 
 

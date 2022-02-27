@@ -14,14 +14,16 @@ def albumentation_wrapper(transform: albumentations.Compose) -> Callable[[np.nda
     """Returns a function that applies the albumentation transforms to a batch."""
 
     def albumentation_transform_fn(imgs: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Apply transformations on a batch of data."""
+        """Apply transformations on a batch of data.
+
+        No changes to the labels for this project.  (Should be fine as long as things don't move around too much)
+        """
         out_sizes = transform(image=imgs[0])["image"].shape[:2]
         out_imgs = np.empty((imgs.shape[0], *out_sizes, 2), dtype=np.float32)
-        out_labels = labels  # No changes to the labels for this project.  (Should be fine as long as no random crop)
         for i, (img, _label) in enumerate(zip(imgs, labels)):
             transformed = transform(image=img)
             out_imgs[i] = transformed["image"]
-        return out_imgs, out_labels
+        return out_imgs, labels
     return albumentation_transform_fn
 
 

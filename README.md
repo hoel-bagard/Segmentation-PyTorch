@@ -13,6 +13,9 @@ Code was not meant, at all, to handle a double segmentation task. Sorry =(
 In the code, "classification" refers to the object/class classification part. And danger refers to the danger level classification.
 
 
+Many functions in the code are from old projects and have not been adapted for this one, they are therefore not usuable (and not needed).
+
+
 ## Installation
 
 ### Dependencies
