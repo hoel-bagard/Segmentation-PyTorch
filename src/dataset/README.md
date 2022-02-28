@@ -1,6 +1,6 @@
 ## Original data format
-
 The original data format contains folders with the following structure:
+
 ```
 image_name
   ├── pic 
