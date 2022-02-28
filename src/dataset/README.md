@@ -1,4 +1,5 @@
 ## Original data format
+
 The original data format contains folders with the following structure:
 ```
 image_name
@@ -22,10 +23,13 @@ Finally split the dataset into Train and Validation.
 
 #### Stitching
 Stitch together the tiles with:
+
 ```
 python utils/stitch.py <path to the dataset> <path to where the stiched images will be saved>
 ```
+
 Example:
+
 ```
 python utils/stitch.py ../data/20220128 ../data/preprocessed
 ```
@@ -38,13 +42,17 @@ The masks are 8 by 5 pixels since this is the label precision we got.\
 TODO: It might be possible to get a 16x10 mask by taking into account the overlapp. For each "pixel" get the value from each tile that contains it, then take the class/level that appears the most.
 
 Generate segmentation masks with (make sure the classes and max danger level are set in the data config file):
+
 ```
 python -m utils.create_segmentation_masks <path to the dataset> <path to where the stiched masks will be saved>
 ```
+
 Example:
+
 ```
 python -m utils.create_segmentation_masks ../data/20220128/ ../data/preprocessed
 ```
+
 Note: You can add the `-f` option to generate full size masks. This is not necessary, but helps a lot for visualization / to check for bugs (especially since the danger mask's values go from 0 to 5, so basically everything is black).\
 Note: For now the danger level mask value is not changed. But maybe there should be a -1 to have the lowest level be 0.
 

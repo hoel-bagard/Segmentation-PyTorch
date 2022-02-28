@@ -38,6 +38,7 @@ See the readme in the [dataset folder](src/dataset) to see how to format the dat
 
 ## Train
 Once you have the environment all set up on the server of your choice and your two config files ready, training an AI is straight forward. Just run the following command: 
+
 ```
 CUDA_VISIBLE_DEVICES=0 python train.py --name <train_name>
 ```
@@ -72,6 +73,7 @@ In the code, "classification" refers to the object/class classification part. An
 
 ### Formating
 The code is trying to follow diverse PEPs conventions (notably PEP8). To have a similar dev environment you can install the following packages (pacman is for arch-based linux distros):
+
 ```
 sudo pacman -S flake8 python-flake8-docstrings
 pip install pep8-naming flake8-import-order
