@@ -14,15 +14,21 @@ class SegClass(NamedTuple):
 
 # Notes:
 # - 2 classes can be mapped to the same color.
-#   In that case, the first to appear will be used when going from RGB to class name.
-#   Can be usefull with things like nice_cat, BadCat --> cat
+#     In that case, the first to appear will be used when going from RGB to class name.
+#     Can be usefull with things like nice_cat, BadCat --> cat
+# - If a class is not in the set, it will be considered as "その他" when creating the masks.
 # - There should be a background / other class with the color black (used when shifting/rotating for example)
-classes = frozenset([SegClass("cat", (0, 255, 0)),
-                     SegClass("nice_cat", (0, 255, 0)),
-                     SegClass("BadCat", (0, 255, 0)),
-                     SegClass("Dog", (34, 113, 179)),
-                     SegClass("Human", (144, 70, 132)),
-                     SegClass("Background", (0, 0, 0))
+classes = frozenset([SegClass("安全", (0, 255, 0)),
+                     SegClass("自動車", (215, 45, 109)),
+                     SegClass("Pole", (165, 165, 165)),  # White aluminium
+                     SegClass("自転車", (166, 94, 46)),
+                     SegClass("人間", (34, 113, 179)),
+                     SegClass("人", (34, 113, 179)),
+                     SegClass("段差", (144, 70, 132)),
+                     SegClass("下段差", (144, 70, 132)),
+                     SegClass("上段差", (144, 70, 132)),
+                     SegClass("その他", (0, 0, 0))  # Keep black for this class
+                     # SegClass("ボール", (114, 20, 34)),
                      ])
 
 

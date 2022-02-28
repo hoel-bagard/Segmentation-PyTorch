@@ -29,8 +29,8 @@ from src.torch_utils.utils.prepare_folders import prepare_folders
 from src.torch_utils.utils.ressource_usage import resource_usage
 from src.torch_utils.utils.torch_summary import summary
 from src.torch_utils.utils.trainer import Trainer
-from src.utils.seg_tensorboard import SegmentationTensorBoard
 from src.utils.seg_metrics import SegmentationMetrics
+from src.utils.seg_tensorboard import SegmentationTensorBoard
 
 
 def main():

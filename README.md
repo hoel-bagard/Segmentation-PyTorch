@@ -1,8 +1,4 @@
 # Segmentation-PyTorch
-
-Many functions in the code are from old projects and have not been adapted for this one, they are therefore not usuable (and not needed).\
-When pushing to backlog, update the config templates.
-
 ## Installation
 
 #### Clone the repository
@@ -47,7 +43,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py --name <train_name>
 ```
 
 Notes:
-- Training should take around TODO hours.
+- Training should take around 1 hour.
 - `CUDA_VISIBLE_DEVICES` is used to select which GPU to use. Check that the one you plan to use is free before you use it by running the `nvidia-smi` command.
 
 #### Results

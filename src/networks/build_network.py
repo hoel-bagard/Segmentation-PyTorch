@@ -3,14 +3,10 @@ from typing import Optional
 
 import torch
 
-from .convnext_unet import UConvNeXt
 from .danger_p_net import DangerPConvNeXt, DangerPNet
-from .unet import UDarkNet
 
 
 class ModelHelper:
-    UConvNeXt = UConvNeXt
-    UDarkNet = UDarkNet
     DangerPNet = DangerPNet
     DangerPConvNeXt = DangerPConvNeXt
 

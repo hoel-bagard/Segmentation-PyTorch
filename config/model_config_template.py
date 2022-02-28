@@ -10,26 +10,19 @@ class ModelConfig:
     MAX_EPOCHS = 500
     START_LR = 1e-3
     END_LR = 5e-6
-    LR_DECAY = 0.998
     WEIGHT_DECAY = 1e-2   # Weight decay for the optimizer
 
     # Data processing
-    IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (1024, 640))  # All images will be resized to this size
-    OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (16, 10))  # Output size of the network
+    # IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (640, 1024))  # Images will be resized to this size
+    # OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (10, 16))  # Output size of the network
+    IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (320, 512))
+    OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (5, 8))
     # The mean and std used to normalize the dataset.
-    # (Actual values are the commented out ones.
     MEAN: tuple[float, float] = field(default_factory=lambda: (0.494, 0.037))
     STD: tuple[float, float] = field(default_factory=lambda: (0.266, 0.074))
 
     # Network part
-    MODEL = ModelHelper.UDarkNet
-
-    # The values bellow are used for the UNet (CHANNELS can be used for the ConvNeXt too if len == 4)
-    CHANNELS: list[int] = field(default_factory=lambda: [3, 32, 64, 64, 128, 256])
-    SIZES: list[int | tuple[int, int]]  = field(default_factory=lambda: [5, 3, 3, 3, 3, 3])   # Kernel sizes
-    STRIDES: list[int | tuple[int, int]]  = field(default_factory=lambda: [5, 2, 2, 2, 2, 2])
-    PADDINGS: list[int | tuple[int, int]]  = field(default_factory=lambda: [2, 1, 1, 1, 1, 1])
-    BLOCKS: list[int] = field(default_factory=lambda: [1, 2, 2, 1, 1, 1])
+    MODEL = ModelHelper.DangerPNet
 
 
 def get_model_config() -> ModelConfig:
