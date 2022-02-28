@@ -39,7 +39,7 @@ class DataConfig:
 
     USE_CHECKPOINTS    = True               # Whether to save checkpoints or not
     CHECKPOINTS_DIR    = Path("path", "to", "checkpoint_dir", "AI_Name")  # Path to checkpoint dir
-    CHECKPT_SAVE_FREQ  = 10                  # How often to save checkpoints (if they are better than the previous one)
+    CHECKPT_SAVE_FREQ  = 20                  # How often to save checkpoints (if they are better than the previous one)
 
     USE_TB             = True                # Whether generate a TensorBoard or not
     TB_DIR             = Path("path", "to", "log_dir", "AI_Name")  # TensorBoard dir

@@ -58,6 +58,7 @@ def main():
     logger.info("Finished preparing tensorboard and checkpoints folders.")
 
     torch.backends.cudnn.benchmark = True   # Makes training quite a bit faster
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     train_data, train_labels = loader_fn(data_config.DATA_PATH / "Train",
                                          get_mask_path_fn=get_mask_path,
@@ -166,11 +167,18 @@ def main():
 
                 if (epoch_loss < best_loss and data_config.USE_CHECKPOINTS and epoch >= data_config.RECORD_START
                         and (epoch - last_checkpoint_epoch) >= data_config.CHECKPT_SAVE_FREQ):
-                    save_path = data_config.CHECKPOINTS_DIR / f"train_{epoch}.pt"
+                    # save_path = data_config.CHECKPOINTS_DIR / f"train_{epoch}.pt"
+                    save_path = data_config.CHECKPOINTS_DIR / f"train_{epoch}.onnx"
                     logger.info(f"\nLoss improved from {best_loss:.5e} to {epoch_loss:.5e},"
                                 f"saving model to {save_path}")
                     best_loss, last_checkpoint_epoch = epoch_loss, epoch
-                    torch.save(model.state_dict(), save_path)
+                    dummy_input = torch.randn(1, *train_dataloader.data_shape, device=device)
+                    torch.onnx.export(model, dummy_input, save_path,
+                                      export_params=True, opset_version=10, do_constant_folding=True,
+                                      input_names=["input"], output_names=["output"],
+                                      dynamic_axes={"input": {0: "batch_size"},
+                                                    "output": {0: "batch_size"}})
+                    # torch.save(model.state_dict(), save_path)
 
                 logger.info(f"Epoch loss: {epoch_loss:.5e}  -  Took {time.perf_counter() - epoch_start_time:.5f}s")
 
