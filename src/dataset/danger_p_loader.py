@@ -104,6 +104,10 @@ def danger_p_load_labels(label_paths: Path | list[Path],
         # Transform the mask into a one hot mask
         one_hot_cls_mask = np.zeros((height, width, len(idx_to_color)))
         for key in range(len(idx_to_color)):
+            # Skip duplicate colors.
+            if key > 0 and (idx_to_color[key] == idx_to_color[key-1]).all(axis=0):
+                print(idx_to_color[key])
+                continue
             one_hot_cls_mask[:, :, key][(cls_mask == idx_to_color[key]).all(axis=-1)] = 1
 
         # Dirty and hardcoded for the project.
