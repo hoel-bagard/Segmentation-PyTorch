@@ -51,9 +51,14 @@ Notes:
 - `CUDA_VISIBLE_DEVICES` is used to select which GPU to use. Check that the one you plan to use is free before you use it by running the `nvidia-smi` command.
 
 #### Results
-To see the results of the train, open the TensorBoard. You should see something similar to this:
+To see the results of the train, open the TensorBoard. You should see something similar to this in the image tab:
 
-TODO
+| Train Image 1 | Train Image 2 |
+:-------------------------:|:-------------------------:
+| ![1](https://user-images.githubusercontent.com/34478245/155912407-663943d7-c2f2-4d85-b698-d2942a04d39c.png) | ![2](https://user-images.githubusercontent.com/34478245/155912412-1e6c9f15-b4fb-4267-ba01-9de01cc3c7f8.png) |
+
+
+There are also lots of plots and confusion matrices.
 
 ## Inference
 There is no inference script for this project. At least not yet.
