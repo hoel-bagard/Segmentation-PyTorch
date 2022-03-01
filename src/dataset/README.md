@@ -4,8 +4,8 @@ The original data format contains folders with the following structure:
 ```
 image_name
   ├── pic 
-  │   ├── 0101.bin          # Disparity map for the first tile
-  │   ├── 0101.bmp          # Grayscale image for the first tile
+  │   ├── 0101.bin    # Disparity map for the first tile
+  │   ├── 0101.bmp    # Grayscale image for the first tile
   │   ├── ...         # Etc
   │   ├── 1007.bmp
   │   └── 1007.bmp

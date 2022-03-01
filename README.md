@@ -31,7 +31,6 @@ For the `MAX_EPOCHS` value, usually around 400 epochs is enough, you will need t
 ## Get some data and format it:
 
 The data for this project is on the NAS under:
-- `A7_*****/<client_name>/2022_0128_5-Objects-Data/` 
 - `A7_*****/<client_name>/20211207_見直しデータ`
 
 See the readme in the [dataset folder](src/dataset) to see how to format the data.
