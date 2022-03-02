@@ -138,7 +138,6 @@ def main():
                                       lr=model_config.START_LR, weight_decay=model_config.WEIGHT_DECAY)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=model_config.END_LR)
-        # TODO: Try this https://github.com/rwightman/pytorch-image-models/blob/master/timm/scheduler/cosine_lr.py
 
         if data_config.USE_TB:
             metrics = SegmentationMetrics(model, train_dataloader, val_dataloader,

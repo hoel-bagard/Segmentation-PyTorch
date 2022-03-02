@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-from torch.nn.functional import binary_cross_entropy
 
 
 class DangerPLoss(nn.Module):
