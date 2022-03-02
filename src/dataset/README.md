@@ -64,7 +64,7 @@ Note: For the danger level mask, the values in the original dataset are 1, 3 and
 
 #### Split the data
 You need to split the data between two folders: "Train" and "Validation" (the names are hard coded). You can either do it by hand, or modify the `utils/split_train_val.py` script to work on this dataset.\
-I did it manually for simplicity.
+I did it manually for simplicity (folders 3 and 10 for validation).
 
 ## Loading
 The data is loaded in `danger_p_loader.py`.\
