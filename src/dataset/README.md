@@ -38,8 +38,7 @@ python utils/stitch.py ../data/20220128 ../data/preprocessed
 There are two segmentations masks per image for this project:
 - An RGB mask used for classification.
 - A grayscale one used for danger level prediction.
-The masks are 8 by 5 pixels since this is the label precision we got.\
-TODO: It might be possible to get a 16x10 mask by taking into account the overlapp. For each "pixel" get the value from each tile that contains it, then take the class/level that appears the most.
+The masks are 16 by 10 pixels since this is the label precision we got.
 
 Generate segmentation masks with (make sure the classes and max danger level are set in the data config file):
 

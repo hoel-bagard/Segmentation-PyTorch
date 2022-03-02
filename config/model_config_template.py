@@ -14,9 +14,8 @@ class ModelConfig:
 
     # Data processing
     # IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (640, 1024))  # Images will be resized to this size
-    # OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (10, 16))  # Output size of the network
     IMAGE_SIZES: tuple[int, int] = field(default_factory=lambda: (320, 512))
-    OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (5, 8))
+    OUTPUT_SIZES: tuple[int, int] = field(default_factory=lambda: (10, 16))  # Output size of the network
     # The mean and std used to normalize the dataset.
     MEAN: tuple[float, float] = field(default_factory=lambda: (0.494, 0.037))
     STD: tuple[float, float] = field(default_factory=lambda: (0.266, 0.074))
