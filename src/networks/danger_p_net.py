@@ -42,25 +42,23 @@ class DangerPNet(nn.Module):
             Conv2D(32, 64, 3, 2, 2),
             nn.MaxPool2d(2, 2),
             Conv2D(64, 64, 1, 1, 0),
-            Conv2D(64, 128, 3, 2, 2),
+            Conv2D(64, 64, 3, 2, 2),
             nn.MaxPool2d(2, 2),
-            Conv2D(128, 128, 1, 1, 0)
+            Conv2D(64, 64, 3, 1, 1),
         )
 
         self.classification_head = nn.Sequential(
-            Conv2D(128, 128, 3, 1, 1),  # So bottle neck in the latent ?!
             nn.MaxPool2d(2, 2),
-            Conv2D(128, 128, 1, 1, 0),
-            Conv2D(128, 64, 3, 1, 1),
+            Conv2D(64, 64, 1, 1, 0),
+            Conv2D(64, 64, 3, 1, 1),
             Conv2D(64, 32, 3, 1, 1),
             Conv2D(32, 32, 1, 1, 0),
             nn.Conv2d(32, self.n_classes, 3, 1, 1)
         )
         self.danger_head = nn.Sequential(
-            Conv2D(128, 128, 3, 1, 1),
             nn.MaxPool2d(2, 2),
-            Conv2D(128, 128, 1, 1, 0),
-            Conv2D(128, 64, 3, 1, 1),
+            Conv2D(64, 64, 1, 1, 0),
+            Conv2D(64, 64, 3, 1, 1),
             Conv2D(64, 32, 3, 1, 1),
             Conv2D(32, 32, 1, 1, 0),
             nn.Conv2d(32, self.n_danger_levels, 3, 1, 1)
