@@ -81,7 +81,7 @@ def main():
     #       random brightness/contract. It's not ideal, but shouldn't be too damaging (still, look into this).
     augmentation_pipeline = albumentation_wrapper(albumentations.Compose([
         albumentations.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
-        albumentations.ShiftScaleRotate(scale_limit=0.1, rotate_limit=10, shift_limit=0.06, p=0.5,
+        albumentations.ShiftScaleRotate(scale_limit=0.06, rotate_limit=7, shift_limit=0.03, p=0.5,
                                         border_mode=cv2.BORDER_CONSTANT, value=0),
     ]))
     augmentation_pipeline = transforms.compose_transformations((transforms.horizontal_flip, augmentation_pipeline))

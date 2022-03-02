@@ -8,12 +8,12 @@ import onnxruntime as nxrun
 import torch
 from einops import rearrange
 
-import src.dataset.data_transformations as transforms
 from config.data_config import get_data_config
 from config.model_config import get_model_config
 from src.dataset.danger_p_loader import danger_p_load_data as load_data
 from src.dataset.danger_p_loader import danger_p_load_labels as load_labels
 from src.dataset.danger_p_loader import danger_p_loader as data_loader
+from src.dataset.data_transformations_albumentations import albumentation_wrapper
 from src.dataset.dataset_specific_fn import default_get_mask_path
 from src.torch_utils.utils.imgs_misc import denormalize_np
 from src.torch_utils.utils.imgs_misc import show_img
@@ -45,11 +45,10 @@ def main():
     assert len(imgs_paths) > 0, f"Did not find any image in {data_path}, exiting"
     logger.info(f"Data loaded, found {(nb_imgs := len(imgs_paths))} images.")
 
-    preprocess_fn = albumentations.Compose([
+    preprocess_fn = albumentation_wrapper(albumentations.Compose([
         albumentations.Normalize(mean=model_config.MEAN, std=model_config.STD, max_pixel_value=255.0, p=1.0),
         albumentations.Resize(*model_config.IMAGE_SIZES, interpolation=cv2.INTER_LINEAR)
-    ])
-    preprocess_fn = transforms.compose_transformations((preprocess_fn, transforms.to_tensor))
+    ]))
 
     print("Building model. . .", end="\r")
     model = nxrun.InferenceSession(model_path)

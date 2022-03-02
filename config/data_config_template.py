@@ -13,22 +13,21 @@ class SegClass(NamedTuple):
 
 
 # Notes:
-# - 2 classes can be mapped to the same color.
-#     In that case, the first to appear will be used when going from RGB to class name/idx.
-#     Can be usefull with things like 段差, 下段差, 上段差 --> 段差
-# - If a class is not in the set, it will be considered as "その他" when creating the masks.
-# - Keep the background/other class black just in case.
-classes = ([SegClass("安全", (0, 255, 0)),
-            SegClass("自動車", (215, 45, 109)),
-            SegClass("Pole", (165, 165, 165)),  # White aluminium
-            SegClass("自転車", (166, 94, 46)),
+# - Classes should be ranked by order of "importance" (i.e. size), used when generating masks
+# - 2 classes can be mapped to the same color, if they are next to each other..
+#   In that case, the first to appear will be used when going from RGB to class name.
+#   Can be usefull with things like 下段差, 上段差 --> 段差
+# - If a class is not in the set, it will be considered as "安全"
+classes = ([SegClass("Pole", (165, 165, 165)),  # White aluminium
             SegClass("人間", (34, 113, 179)),
             SegClass("人", (34, 113, 179)),
+            SegClass("その他", (0, 0, 0)),  # Keep black for this class
             SegClass("段差", (144, 70, 132)),
             SegClass("下段差", (144, 70, 132)),
             SegClass("上段差", (144, 70, 132)),
-            SegClass("その他", (0, 0, 0))  # Keep black for this class
-            # SegClass("ボール", (114, 20, 34)),
+            SegClass("自転車", (166, 94, 46)),
+            SegClass("自動車", (215, 45, 109)),
+            SegClass("安全", (0, 255, 0))
             ])
 
 
