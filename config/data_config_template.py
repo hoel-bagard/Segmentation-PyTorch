@@ -54,7 +54,7 @@ class DataConfig:
     NAME_TO_COLOR = {cls.name: cls.color for i, cls in enumerate(classes)}   # Maps a class name to its color
     IDX_TO_NAME = {i: cls.name for i, cls in enumerate(classes)}   # Maps an int to a class name. Old "LABEL_MAP"
     OUTPUT_CLASSES: int = len(IDX_TO_NAME)
-    MAX_DANGER_LEVEL: int = 7  # Specific to this project.
+    MAX_DANGER_LEVEL: int = 2  # Specific to this project.
 
 
 def get_data_config() -> DataConfig:

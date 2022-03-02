@@ -54,7 +54,7 @@ python -m utils.create_segmentation_masks ../data/20220128/ ../data/preprocessed
 ```
 
 Note: You can add the `-f` option to generate full size masks. This is not necessary, but helps a lot for visualization / to check for bugs (especially since the danger mask's values go from 0 to 5, so basically everything is black).\
-Note: For now the danger level mask value is not changed. But maybe there should be a -1 to have the lowest level be 0.
+Note: For the danger level mask, the values in the original dataset are 1, 3 and 5 but in the generated mask they are 0, 1 and 2.
 
 #### Output example
 | Image | Disparity | Classification Mask | Danger Mask |

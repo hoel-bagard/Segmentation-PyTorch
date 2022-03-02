@@ -13,6 +13,7 @@ def create_masks(data_path: Path, output_dir: Path, limit: Optional[int] = None,
     """Create the classification and danger segmentation masks from the csvs."""
     data_config = get_data_config()
     tile_size: int = 128
+    danger_lvl_map = {1: 0, 3: 1, 5: 2}  # I was told to change the values to those.
 
     csv_paths = list(data_path.rglob("*.csv"))
     nb_imgs = len(csv_paths)
@@ -41,6 +42,7 @@ def create_masks(data_path: Path, output_dir: Path, limit: Optional[int] = None,
             danger_mask_full = np.zeros((5*tile_size, 8*tile_size), dtype=np.uint8)
         # Fuse the tiles into one image.
         for cls, danger_lvl, (coord_y, coord_x) in zip(classes, danger_lvls, coordinates):
+            danger_lvl = danger_lvl_map[danger_lvl]
             cls = cls if cls in data_config.NAME_TO_COLOR.keys() else "その他"
             if coord_y % 2 == 0:
                 coord_y //= 2
