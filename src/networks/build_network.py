@@ -4,11 +4,13 @@ from typing import Optional
 import torch
 
 from .danger_p_net import DangerPConvNeXt, DangerPNet
+from .resnet_18 import DangerResNet
 
 
 class ModelHelper:
     DangerPNet = DangerPNet
     DangerPConvNeXt = DangerPConvNeXt
+    DangerResNet = DangerResNet
 
 
 def build_model(model_type: type,
