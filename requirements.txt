@@ -5,3 +5,5 @@ numpy
 matplotlib
 einops
 albumentations
+torchvision
+Pillow==6.1
