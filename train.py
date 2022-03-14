@@ -125,7 +125,7 @@ def main():
                             **get_dataclass_as_dict(model_config))
 
         logger.info(f"{'-'*24} Starting train {'-'*24}")
-        logger.info("From command : " + ' '.join(sys.argv))
+        logger.info("From command : %s", ' '.join(sys.argv))
         logger.info(f"Input shape: {train_dataloader.data_shape}")
         logger.info("")
         logger.info("Using model:")
@@ -133,9 +133,16 @@ def main():
             logger.info(line)
         logger.info("")
 
-        loss_fn = DangerPLoss(data_config.MAX_DANGER_LEVEL)
-        optimizer = torch.optim.AdamW(model.parameters(),
+        params_to_update = []
+        for name, param in model.named_parameters():
+            logger.debug("Passing the following parameters to the optimizer:")
+            if param.requires_grad:
+                params_to_update.append(param)
+                logger.debug(name)
+
+        optimizer = torch.optim.AdamW(params_to_update,
                                       lr=model_config.START_LR, weight_decay=model_config.WEIGHT_DECAY)
+        loss_fn = DangerPLoss(data_config.MAX_DANGER_LEVEL)
         trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader)
         scheduler = CosineAnnealingLR(optimizer, model_config.MAX_EPOCHS, eta_min=model_config.END_LR)
 

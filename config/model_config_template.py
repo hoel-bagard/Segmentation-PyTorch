@@ -22,6 +22,7 @@ class ModelConfig:
 
     # Network part
     MODEL = ModelHelper.DangerPNet
+    FINETUNE = True  # If using a pretrain (ResNet-18 for example), whether to finetune all the weights or not.
 
 
 def get_model_config() -> ModelConfig:

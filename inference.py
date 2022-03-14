@@ -59,7 +59,7 @@ def main():
         logger.info(f"Processing image {img_path.name} ({i+1}/{nb_imgs})")
 
         img = load_data(img_path)
-        img = preprocess_fn(np.expand_dims(img, 0))
+        img = preprocess_fn(np.expand_dims(img, 0))  # TODO: Label missing.
         one_hot_mask_label = load_labels(mask_path)
 
         cls_oh_preds, danger_oh_preds = model.run(None, {input_name: img.numpy()})
