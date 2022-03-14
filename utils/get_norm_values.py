@@ -14,7 +14,7 @@ def main():
     data_path: Path = args.data_path
 
     # Get the grayscale images (masks are in .png)
-    img_path_list = list([p for p in data_path.rglob("*.jpg") if "disp" not in p.stem])
+    img_path_list = [p for p in data_path.rglob("*.jpg") if "disp" not in p.stem]
     nb_imgs = len(img_path_list)
     res_dict = {"img_mean": 0., "img_std": 0., "disp_mean": 0., "disp_std": 0.}
 

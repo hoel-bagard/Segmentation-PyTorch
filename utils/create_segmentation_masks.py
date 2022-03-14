@@ -79,8 +79,7 @@ def create_masks(data_path: Path,
                 # Note: I've no idea if anything done bellow is correct, I just tried stuff...
                 if y == 0:  # Skip top row.
                     continue
-                else:  # Move the labels two rows up.
-                    y -= 3
+                y -= 3  # Move the labels two rows up.
                 # Skip first half of the first column
                 if x == 0:
                     mask2[y:y+2, x+1] = data_config.NAME_TO_COLOR[cls]
