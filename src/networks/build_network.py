@@ -5,12 +5,14 @@ import torch
 
 from .danger_p_net import DangerPConvNeXt, DangerPNet
 from .resnet_18 import DangerResNet
+from .resnet_50 import DangerResNet50
 
 
 class ModelHelper:
     DangerPNet = DangerPNet
     DangerPConvNeXt = DangerPConvNeXt
-    DangerResNet = DangerResNet
+    DangerResNet18 = DangerResNet
+    DangerResNet50 = DangerResNet50
 
 
 def build_model(model_type: type,
