@@ -43,9 +43,11 @@ class DangerResNet50(nn.Module):
         # The first conv and maxpool are the same as the resnet, except for the input channels.
         self.backbone = nn.Sequential(Conv2D(2, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3)),
                                       torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-                                      resnet_backbone)
+                                      resnet_backbone,
+                                      torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+                                      nn.Conv2d(2048, 128, 3, 2, 1))
 
-        backbone_out_channels = resnet.layer4[1].conv2.out_channels  # 512
+        backbone_out_channels = 128  # resnet.layer4[1].conv3.out_channels
         self.classification_head = nn.Conv2d(backbone_out_channels, self.n_classes, 3, 1, 1)
         self.danger_head = nn.Conv2d(backbone_out_channels, self.n_danger_levels, 3, 1, 1)
 
